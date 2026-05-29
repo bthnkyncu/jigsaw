@@ -1,0 +1,62 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "puzzle-assistant"
+version = "0.1.0"
+description = "Gamyun YapBoz Salonu visual matching assistant (click-through overlay only, no mouse automation)"
+readme = "README.md"
+requires-python = ">=3.11"
+authors = [{name = "batuhanwhtkoyuncu"}]
+license = {text = "Proprietary"}
+dependencies = [
+    "numpy>=1.26",
+    "opencv-python>=4.9",
+    "scipy>=1.11",
+    "mss>=9.0",
+    "Pillow>=10.0",
+    "python-xlib>=0.33; platform_system == 'Linux'",
+    "pynput>=1.7",
+]
+
+[project.optional-dependencies]
+windows = [
+    "pywin32>=306; platform_system == 'Windows'",
+    "win10toast>=0.9; platform_system == 'Windows'",
+]
+dev = [
+    "pytest>=7.4",
+    "pytest-cov>=4.1",
+    "ruff>=0.4",
+    "mypy>=1.10",
+    "types-Pillow",
+]
+
+[project.scripts]
+yapboz-asistani = "puzzle_assistant.main:main"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["puzzle_assistant*"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "RUF"]
+ignore = ["E501", "RUF001", "RUF002", "RUF003", "UP037"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+warn_return_any = true
+warn_unused_ignores = true
+ignore_missing_imports = true
+exclude = ["tests/fixtures/"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+addopts = "-ra --strict-markers"

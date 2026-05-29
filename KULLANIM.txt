@@ -1,0 +1,94 @@
+YAPBOZ ASİSTANI — KULLANIM KILAVUZU
+====================================
+
+Gamyun.com YapBoz Salonu için görsel rehber. Fareyi otomatik kontrol ETMEZ —
+sadece doğru parça yerini yarı saydam yeşil çerçeveyle gösterir.
+
+
+1. SİSTEM GEREKSİNİMLERİ
+------------------------
+- Windows 11 (önerilen) veya Ubuntu 22.04 / X11 oturumu
+- 2560×1440 veya 1920×1080 ekran, %100 DPI ölçek
+- Java tabanlı Gamyun YapBoz Salonu masaüstü uygulaması
+
+
+2. ÜÇ ALTIN KURAL
+-----------------
+1) **Önce asistanı, sonra yapbozu açın.**
+   Asistan, yapboz başlatıldığı andaki ~2 saniyelik tam görüntüyü
+   yakalayarak en yüksek doğrulukta çalışır.
+
+2) **Asistan açıkken oyun içinde zoom yapmayın.**
+   Zoom yaparsanız asistan otomatik yeniden kalibrasyon yapar; zaman
+   kaybetmemek için zoom kullanmayın.
+
+3) **Yeni yapboz başlatırken asistanı kapatmaya gerek yok.**
+   Sağ üst referans panel değiştiğinde asistan yeni yapbozu otomatik
+   algılar ve sıfırdan kalibre eder.
+
+
+3. KURULUM
+----------
+
+Windows 11:
+  - YapbozAsistani.exe'yi indirilip masaüstüne kopyalayın.
+  - Windows Defender ilk açılışta uyarı verirse "Yine de çalıştır" deyin.
+    (Asistan dijital imzasız; davranışı: ekran okuma + click-through
+     gösterim, fare/klavye kontrolü YOKTUR.)
+
+Ubuntu 22.04:
+  - dist/YapbozAsistani dosyasını çift tıklayın veya terminalden:
+        ./YapbozAsistani
+
+
+4. KULLANIM AKIŞI
+-----------------
+
+1. Asistanı çalıştırın. Sistem tepsisinde bildirim alacaksınız:
+   "Pencere bulundu — yeni oyunu başlatın."
+
+2. Gamyun YapBoz Salonu uygulamasını açın, bir masaya girin.
+
+3. Oyunda "YENİ OYUN" butonuna basın. Tahta ~2 saniye boyunca
+   tam yapılmış görüntüyle gözükür.
+
+4. Asistan kalibrasyonu bitirince "Hazır — bol şans!" bildirimi
+   gelir. Artık oyunu oynayabilirsiniz.
+
+5. Bir parçayı fareyle tutup sürüklerseniz, asistan parçanın hangi
+   hücreye ait olduğunu yarı saydam yeşil çerçeveyle gösterir.
+   Birleşik parça gruplarında çerçeve GÖSTERİLMEZ (sessiz geçer).
+
+
+5. SIK KARŞILAŞILAN DURUMLAR
+----------------------------
+
+"Düşük kaliteli kaynak" uyarısı:
+  Asistanı oyun açıldıktan sonra çalıştırdınız ve birincil kaynak
+  (init view) kaçırıldı. Asistan sağ üst panelden tahmin yapıyor;
+  doğruluk düşüktür. "YENİ OYUN" düğmesine basın.
+
+"YapBoz penceresi bulunamadı":
+  Gamyun penceresi açık değil veya başlığı tanınmıyor. Pencere
+  başlığında "YapBoz" geçmesi gerekir.
+
+Yeşil çerçeve yanlış yere geliyor:
+  Pencere taşınmış veya zoom kullanılmış olabilir. Asistan kısa
+  süre içinde tekrar kalibre eder.
+
+
+6. LOGLAR
+---------
+Çalışma sırasında oluşan loglar `logs/puzzle_assistant.log` dosyasına
+JSON satırları halinde yazılır. Sorun gönderdiğinizde bu dosyayı
+ekleyebilirsiniz.
+
+
+7. KAPSAM DIŞI
+--------------
+Asistan ASLA:
+- Fareyi hareket ettirmez,
+- Tıklama yapmaz,
+- Parçaları otomatik yerleştirmez.
+
+Sadece doğru hücreyi gösteren bir REHBERdir.
