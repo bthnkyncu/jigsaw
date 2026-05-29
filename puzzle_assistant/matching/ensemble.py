@@ -30,6 +30,7 @@ class MatchResult:
     combined: float
     margin: float
     rejected_reason: str | None  # None on accept, e.g. "low_score" / "low_margin"
+    texture: float = 0.0  # foreground texture (std-dev) of the picked piece
 
 
 def combine_score(t: float, f: float, c: float, settings: Settings) -> float:

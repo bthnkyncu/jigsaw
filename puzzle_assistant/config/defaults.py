@@ -86,11 +86,25 @@ class Settings:
     # 0.45–0.75; the Puzzle_Game prototype gated at 0.38. Margin is tiny on a
     # textured board (neighbouring offsets score similarly), so it's loose.
     min_combined_score: float = 0.40
-    min_margin: float = 0.02
+    # Raised from 0.02 — at 0.02 ambiguous (near-tie) matches were accepted and
+    # placed in the wrong cell. A wrong overlay is worse than none, so require
+    # a clearer lead over the runner-up.
+    min_margin: float = 0.05
+
+    # Pieces flatter than this foreground grayscale std-dev are treated as
+    # "single-colour-ish": their location is ambiguous (the colour repeats
+    # across the board), so they need a much larger margin to be trusted.
+    piece_texture_flat_max: float = 18.0
+    flat_piece_min_margin: float = 0.15
+    # The board reference (~709×501, cell ~42 px) is upscaled by this factor
+    # before matching so CCOEFF and ORB have enough detail to separate
+    # repeated-texture pieces. 1.5 → cell ~63 px, keeping P95 latency under the
+    # 200 ms budget while still adding the detail ORB needs.
+    match_upscale_factor: float = 1.5
 
     # --- Matching (fallback quality) ---
     fallback_min_combined_score: float = 0.50
-    fallback_min_margin: float = 0.03
+    fallback_min_margin: float = 0.06
 
     # --- Overlay ---
     overlay_color: str = "#00FF00"

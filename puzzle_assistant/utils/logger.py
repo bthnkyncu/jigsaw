@@ -91,4 +91,10 @@ def install(log_dir: Path, log_filename: str, rotate_bytes: int, rotate_backups:
 def event(evt: str, level: int = logging.INFO, **fields: Any) -> None:
     """Emit a single structured event."""
 
-    logging.getLogger("puzzle_assistant").log(level, evt, extra={"evt": evt, **fields})
+    # ``logging`` raises KeyError if an ``extra`` key shadows a built-in
+    # LogRecord attribute (e.g. ``name``, ``module``). A crash from a *log*
+    # call is unacceptable here, so rename any colliding keys instead.
+    safe: dict[str, Any] = {"evt": evt}
+    for key, value in fields.items():
+        safe[f"{key}_" if key in _RESERVED_RECORD_FIELDS else key] = value
+    logging.getLogger("puzzle_assistant").log(level, evt, extra=safe)

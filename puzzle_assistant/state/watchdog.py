@@ -26,13 +26,13 @@ def watch(name: str, settings: Settings) -> Iterator[None]:
             plog.event(
                 "perf_abort",
                 level=logging.ERROR,
-                name=name,
+                section=name,
                 elapsed_ms=round(elapsed_ms, 1),
             )
         elif elapsed_ms >= settings.iteration_warn_ms:
             plog.event(
                 "perf_warning",
                 level=logging.WARNING,
-                name=name,
+                section=name,
                 elapsed_ms=round(elapsed_ms, 1),
             )

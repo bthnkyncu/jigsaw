@@ -55,6 +55,7 @@ def match_piece(
         cell=[result.cell.row, result.cell.col] if result.cell else None,
         combined=round(result.combined, 3),
         margin=round(result.margin, 3),
+        texture=round(result.texture, 1),
         quality=target_map.quality,
         elapsed_ms=round(elapsed_ms, 1),
         rejected_reason=result.rejected_reason,
@@ -70,7 +71,16 @@ def _match(
     if piece_bgr.size == 0:
         return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="empty_piece")
 
+    # Upscale the whole match (board + piece) so a tiny ~42 px cell becomes
+    # ~84 px. Both CCOEFF and ORB are far more discriminating at higher
+    # resolution, which is what separates repeated-texture pieces (fur stripes,
+    # petals, bark) that otherwise tie at several board positions.
+    scale = settings.match_upscale_factor
     board = target_map.board_image
+    if scale > 1.0:
+        board = cv2.resize(
+            board, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC
+        )
     bh, bw = board.shape[:2]
 
     # Foreground mask + tight crop to the piece's real silhouette. If the mask
@@ -88,6 +98,11 @@ def _match(
     cy0, cy1 = int(rows_any[0]), int(rows_any[-1]) + 1
     piece = piece_bgr[cy0:cy1, cx0:cx1]
     fg = fg[cy0:cy1, cx0:cx1]
+    if scale > 1.0:
+        piece = cv2.resize(
+            piece, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC
+        )
+        fg = cv2.resize(fg, None, fx=scale, fy=scale, interpolation=cv2.INTER_NEAREST)
     ph, pw = piece.shape[:2]
 
     if pw > bw or ph > bh or pw < 8 or ph < 8:
@@ -111,12 +126,26 @@ def _match(
     except cv2.error:
         ccorr = None
 
-    candidates = _top_n_candidates(ccoeff, pw, ph, n=12, min_score=0.0)
+    texture = _piece_texture(piece, fg)
+
+    candidates = _top_n_candidates(ccoeff, pw, ph, n=8, min_score=0.0)
     if not candidates:
-        return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="no_candidate")
+        return MatchResult(
+            cell=None, combined=0.0, margin=0.0, rejected_reason="no_candidate",
+            texture=texture,
+        )
 
     # Lab mean of the piece (foreground only) for a per-candidate colour check.
     piece_lab = _masked_lab_mean(piece, fg)
+
+    # ORB descriptors of the piece (foreground only). Feature matching breaks
+    # the repeated-texture ties that template/colour can't: even when fur or
+    # petals look alike across the board, the local keypoint geometry differs,
+    # so the true patch yields more good matches.
+    orb = cv2.ORB_create(nfeatures=settings.orb_n_features)  # type: ignore[attr-defined]
+    piece_gray = cv2.cvtColor(piece, cv2.COLOR_BGR2GRAY)
+    _p_kp, p_desc = orb.detectAndCompute(piece_gray, fg)
+    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
     scored: list[tuple[int, int, float]] = []
     for x, y, ccoeff_score in candidates:
@@ -126,9 +155,15 @@ def _match(
         # Colour agreement between the piece and the board patch it would cover.
         patch = board[y:y + ph, x:x + pw]
         color_score = _color_agreement(piece_lab, patch, fg)
-        # CCOEFF carries the bulk of the discrimination; colour sharpens the
-        # margin by penalizing same-texture / wrong-colour positions.
-        combined = 0.60 * ccoeff_score + 0.20 * cr + 0.20 * color_score
+        orb_score = _orb_agreement(orb, bf, p_desc, patch, settings)
+        # CCOEFF localizes; ORB breaks repeated-texture ties; colour/CCORR
+        # penalize wrong-colour positions.
+        combined = (
+            0.45 * ccoeff_score
+            + 0.30 * orb_score
+            + 0.15 * cr
+            + 0.10 * color_score
+        )
         scored.append((x, y, combined))
 
     scored.sort(key=lambda s: s[2], reverse=True)
@@ -147,18 +182,28 @@ def _match(
         else settings.fallback_min_margin
     )
 
+    # Content-aware margin gate. A low-texture / near-single-colour piece has
+    # an inherently ambiguous location: the same colour repeats all over the
+    # board, so several candidates score alike and the top peak is often the
+    # wrong one. For such pieces we demand a much larger margin before trusting
+    # the match (and otherwise reject — a missing overlay beats a wrong one).
+    if texture < settings.piece_texture_flat_max:
+        min_margin = max(min_margin, settings.flat_piece_min_margin)
+
     if best_combined < min_combined:
         return MatchResult(
-            cell=None, combined=best_combined, margin=margin, rejected_reason="low_score"
+            cell=None, combined=best_combined, margin=margin,
+            rejected_reason="low_score", texture=texture,
         )
     if margin < min_margin:
         return MatchResult(
-            cell=None, combined=best_combined, margin=margin, rejected_reason="low_margin"
+            cell=None, combined=best_combined, margin=margin,
+            rejected_reason="low_margin", texture=texture,
         )
 
-    # Piece center on the board → grid cell.
-    center_x = best_x + pw / 2
-    center_y = best_y + ph / 2
+    # Piece center on the (upscaled) board → back to original scale → grid cell.
+    center_x = (best_x + pw / 2) / scale
+    center_y = (best_y + ph / 2) / scale
     col = int(min(target_map.grid.cols - 1, max(0, center_x // target_map.grid.cell_w)))
     row = int(min(target_map.grid.rows - 1, max(0, center_y // target_map.grid.cell_h)))
     return MatchResult(
@@ -166,7 +211,52 @@ def _match(
         combined=best_combined,
         margin=margin,
         rejected_reason=None,
+        texture=texture,
     )
+
+
+def _orb_agreement(
+    orb: object,
+    bf: object,
+    piece_desc: np.ndarray | None,
+    patch_bgr: np.ndarray,
+    settings: Settings,
+) -> float:
+    """Fraction of the piece's ORB descriptors that find a good (crossCheck,
+    Hamming < threshold) match in the board patch. 0 when there are too few
+    features to judge. This is the signal that breaks repeated-texture ties.
+    """
+    if piece_desc is None or len(piece_desc) < 4:
+        return 0.0
+    if patch_bgr.size == 0:
+        return 0.0
+    patch_gray = cv2.cvtColor(patch_bgr, cv2.COLOR_BGR2GRAY)
+    _q_kp, q_desc = orb.detectAndCompute(patch_gray, None)  # type: ignore[attr-defined]
+    if q_desc is None or len(q_desc) < 4:
+        return 0.0
+    try:
+        matches = bf.match(piece_desc, q_desc)  # type: ignore[attr-defined]
+    except cv2.error:
+        return 0.0
+    if not matches:
+        return 0.0
+    good = sum(1 for m in matches if m.distance < settings.orb_match_distance_max)
+    # Normalize by the number of piece descriptors so a feature-rich piece
+    # isn't unfairly favoured.
+    return min(1.0, good / max(len(piece_desc), 1))
+
+
+def _piece_texture(piece_bgr: np.ndarray, fg: np.ndarray) -> float:
+    """Texture richness of the piece: std-dev of foreground grayscale.
+
+    A flat / single-colour piece scores low (<~18) and is hard to localize
+    reliably; a detailed piece scores high.
+    """
+    gray = cv2.cvtColor(piece_bgr, cv2.COLOR_BGR2GRAY)
+    mask = fg > 0
+    if not mask.any():
+        return float(gray.std())
+    return float(gray[mask].std())
 
 
 def _masked_lab_mean(piece_bgr: np.ndarray, fg: np.ndarray) -> np.ndarray:
