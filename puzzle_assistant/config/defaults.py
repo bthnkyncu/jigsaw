@@ -51,6 +51,11 @@ class Settings:
     # Consecutive stable frames required to declare the init view captured.
     # At 20 FPS this is ~0.3s of motion-free board content.
     init_view_stable_frame_count: int = 6
+    # The assembled puzzle fills in top-to-bottom over ~1s, so the first frame
+    # that looks "stable + matching" can still have unsettled bottom rows. Once
+    # all criteria first hold we wait this long (criteria must keep holding)
+    # before capturing, so the board is fully settled.
+    init_view_settle_delay_s: float = 1.0
 
     # --- Grid detection ---
     # Gamyun's "250 parça" mode actually ships boards from ~230 to ~260 pieces
@@ -61,7 +66,11 @@ class Settings:
     grid_peak_prominence: float = 0.15
 
     # --- Pickup & segmentation ---
-    cursor_capture_radius_cell_multiplier: float = 1.5
+    # Tightened from 1.5 — a single piece (tabs included) is ~1.4 cells wide,
+    # so a 1.5-cell *radius* (3-cell window) pulled neighbouring pieces from a
+    # pile into the crop and the segmenter returned a multi-piece blob. 1.1
+    # keeps the window just big enough for one piece plus its tabs.
+    cursor_capture_radius_cell_multiplier: float = 1.1
     min_piece_area_ratio: float = 0.4
     group_area_ratio: float = 4.0
     piece_core_erode_ratio: float = 0.15

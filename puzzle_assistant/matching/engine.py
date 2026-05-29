@@ -93,32 +93,42 @@ def _match(
     if pw > bw or ph > bh or pw < 8 or ph < 8:
         return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="bad_piece_size")
 
-    # Masked CCORR — primary localizer.
+    # CCOEFF (mean-subtracted) is the primary localizer: it discriminates the
+    # true position on a textured board far better than CCORR, which is
+    # brightness-dominated and scores flat regions almost uniformly (this is
+    # what produced near-zero margins in live runs).
+    try:
+        ccoeff = cv2.matchTemplate(board, piece, cv2.TM_CCOEFF_NORMED)
+        ccoeff = np.clip(ccoeff, 0.0, 1.0)
+    except cv2.error:
+        return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="ccoeff_failed")
+
+    # Masked CCORR as a secondary colour-fidelity signal.
     try:
         ccorr = cv2.matchTemplate(board, piece, cv2.TM_CCORR_NORMED, mask=fg)
         ccorr = np.nan_to_num(ccorr, nan=0.0)
         ccorr = np.clip(ccorr, 0.0, 1.0)
     except cv2.error:
-        return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="ccorr_failed")
+        ccorr = None
 
-    # CCOEFF on the same crop — mean-subtracted, far better at discriminating
-    # the true location on a textured board.
-    try:
-        ccoeff = cv2.matchTemplate(board, piece, cv2.TM_CCOEFF_NORMED)
-        ccoeff = np.clip(ccoeff, 0.0, 1.0)
-    except cv2.error:
-        ccoeff = None
-
-    candidates = _top_n_candidates(ccorr, pw, ph, n=12, min_score=0.0)
+    candidates = _top_n_candidates(ccoeff, pw, ph, n=12, min_score=0.0)
     if not candidates:
         return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="no_candidate")
 
+    # Lab mean of the piece (foreground only) for a per-candidate colour check.
+    piece_lab = _masked_lab_mean(piece, fg)
+
     scored: list[tuple[int, int, float]] = []
-    for x, y, ccorr_score in candidates:
-        cc = 0.0
-        if ccoeff is not None and 0 <= y < ccoeff.shape[0] and 0 <= x < ccoeff.shape[1]:
-            cc = float(ccoeff[y, x])
-        combined = 0.55 * cc + 0.45 * ccorr_score
+    for x, y, ccoeff_score in candidates:
+        cr = 0.0
+        if ccorr is not None and 0 <= y < ccorr.shape[0] and 0 <= x < ccorr.shape[1]:
+            cr = float(ccorr[y, x])
+        # Colour agreement between the piece and the board patch it would cover.
+        patch = board[y:y + ph, x:x + pw]
+        color_score = _color_agreement(piece_lab, patch, fg)
+        # CCOEFF carries the bulk of the discrimination; colour sharpens the
+        # margin by penalizing same-texture / wrong-colour positions.
+        combined = 0.60 * ccoeff_score + 0.20 * cr + 0.20 * color_score
         scored.append((x, y, combined))
 
     scored.sort(key=lambda s: s[2], reverse=True)
@@ -157,6 +167,35 @@ def _match(
         margin=margin,
         rejected_reason=None,
     )
+
+
+def _masked_lab_mean(piece_bgr: np.ndarray, fg: np.ndarray) -> np.ndarray:
+    """Mean Lab colour of the foreground pixels of ``piece_bgr``."""
+    lab = cv2.cvtColor(piece_bgr, cv2.COLOR_BGR2LAB)
+    mask = fg > 0
+    mean = lab.reshape(-1, 3).mean(axis=0) if not mask.any() else lab[mask].mean(axis=0)
+    return np.asarray(mean, dtype=np.float32)
+
+
+def _color_agreement(piece_lab: np.ndarray, patch_bgr: np.ndarray, fg: np.ndarray) -> float:
+    """1.0 when the board patch's mean colour matches the piece, decaying with
+    Lab L2 distance. Foreground-masked so tabs/background don't skew it.
+    """
+    if patch_bgr.size == 0:
+        return 0.0
+    patch_lab = cv2.cvtColor(patch_bgr, cv2.COLOR_BGR2LAB)
+    if patch_lab.shape[:2] == fg.shape[:2]:
+        mask = fg > 0
+        patch_mean = (
+            patch_lab[mask].mean(axis=0).astype(np.float32)
+            if mask.any()
+            else patch_lab.reshape(-1, 3).mean(axis=0).astype(np.float32)
+        )
+    else:
+        patch_mean = patch_lab.reshape(-1, 3).mean(axis=0).astype(np.float32)
+    dist = float(np.linalg.norm(piece_lab - patch_mean))
+    # ~25 Lab units of difference halves the score.
+    return max(0.0, 1.0 - dist / 50.0)
 
 
 def _foreground_mask(piece_bgr: np.ndarray) -> np.ndarray:

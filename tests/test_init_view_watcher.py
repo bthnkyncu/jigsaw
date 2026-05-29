@@ -21,6 +21,8 @@ def _load_window_crop(fixtures_dir: Path, name: str) -> "cv2.typing.MatLike":
 
 def test_init_view_detected_on_full_image(fixtures_dir: Path) -> None:
     settings = load_settings(None)
+    # Settle delay uses wall-clock time; zero it so the test isn't time-bound.
+    settings.init_view_settle_delay_s = 0.0
     watcher = InitViewWatcher(settings)
     img = _load_window_crop(fixtures_dir, "init_view_4")
     # Use the known board bbox from board_detector tests.

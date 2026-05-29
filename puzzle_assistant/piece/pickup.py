@@ -47,7 +47,9 @@ def pickup_from_window(
 
     region = window_bgr[y0:y1, x0:x1]
     cursor_local = (cx - x0, cy - y0)
-    piece = extract_piece(region, cursor_local, settings)
+    piece = extract_piece(
+        region, cursor_local, settings, expected_cell=(grid.cell_w, grid.cell_h)
+    )
     if piece is None:
         return None
 

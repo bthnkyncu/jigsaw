@@ -24,6 +24,8 @@ def test_full_calibration_from_init_view(fixtures_dir: Path) -> None:
     """Feed an init-view fixture; the loop should reach READY."""
 
     settings = load_settings(None)
+    # Settle delay is wall-clock; zero it so a handful of fast ticks suffice.
+    settings.init_view_settle_delay_s = 0.0
     full = cv2.imread(str(fixtures_dir / "init_view_4.png"))
     window_frame = full[WIN_Y:WIN_Y + WIN_H, WIN_X:WIN_X + WIN_W]
 
@@ -44,6 +46,7 @@ def test_full_calibration_from_init_view(fixtures_dir: Path) -> None:
 
 def test_mouse_down_triggers_overlay(fixtures_dir: Path) -> None:
     settings = load_settings(None)
+    settings.init_view_settle_delay_s = 0.0
     full = cv2.imread(str(fixtures_dir / "init_view_4.png"))
     window_frame = full[WIN_Y:WIN_Y + WIN_H, WIN_X:WIN_X + WIN_W]
 

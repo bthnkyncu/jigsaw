@@ -38,11 +38,16 @@ def extract_piece(
     region_bgr: np.ndarray,
     cursor_local: tuple[int, int],
     settings: Settings,
+    expected_cell: tuple[float, float] | None = None,
 ) -> PickedPiece | None:
-    """Segment the piece nearest ``cursor_local`` inside ``region_bgr``.
+    """Segment the piece under ``cursor_local`` inside ``region_bgr``.
 
-    Returns ``None`` if no piece-like component is present (e.g. the click
-    landed on empty desk or already-placed board area).
+    ``expected_cell`` is the ``(cell_w, cell_h)`` of one puzzle cell. When
+    given, the segmenter rejects components far larger than a single piece
+    (i.e. several pieces stuck together near a pile) so that the matcher is
+    never fed a multi-piece blob — a wrong overlay is worse than no overlay.
+
+    Returns ``None`` if no clean single-piece component sits under the cursor.
     """
 
     if region_bgr.size == 0:
@@ -69,21 +74,67 @@ def extract_piece(
         return None
 
     cx, cy = cursor_local
-    best_label = -1
-    best_dist = float("inf")
+
+    # A single piece, tabs included, can span ~2× a cell per side (tabs
+    # protrude ~40 % on each edge) and ~3× a cell in area. Anything larger is
+    # a clump of touching pieces and must be rejected.
+    max_dim = None
+    max_area = None
+    if expected_cell is not None:
+        ecw, ech = expected_cell
+        max_dim = max(ecw, ech) * 2.0
+        max_area = ecw * ech * 3.0
+
+    # Prefer the component that actually sits under the cursor; fall back to
+    # the nearest one. Reject components that are too big to be one piece.
+    cursor_label = -1
+    if 0 <= cy < labels.shape[0] and 0 <= cx < labels.shape[1]:
+        lbl_here = int(labels[cy, cx])
+        if lbl_here != 0:
+            cursor_label = lbl_here
+
+    candidates: list[int] = []
+    if cursor_label > 0:
+        candidates.append(cursor_label)
+    # Also gather nearby components in case the cursor sits on a tab gap.
     for label in range(1, n_labels):
+        if label == cursor_label:
+            continue
         x, y, w, h, area = stats[label]
         if area < 50:
             continue
         comp_cx = x + w / 2
         comp_cy = y + h / 2
+        if (comp_cx - cx) ** 2 + (comp_cy - cy) ** 2 <= (max(region_bgr.shape[:2]) * 0.4) ** 2:
+            candidates.append(label)
+
+    best_label = -1
+    best_dist = float("inf")
+    for label in candidates:
+        x, y, w, h, area = stats[label]
+        if area < 50:
+            continue
+        if max_dim is not None and (w > max_dim or h > max_dim):
+            continue
+        if max_area is not None and area > max_area:
+            continue
+        comp_cx = x + w / 2
+        comp_cy = y + h / 2
         dist = (comp_cx - cx) ** 2 + (comp_cy - cy) ** 2
+        # The cursor's own component wins ties strongly.
+        if label == cursor_label:
+            dist *= 0.25
         if dist < best_dist:
             best_dist = dist
             best_label = label
 
     if best_label < 0:
-        plog.event("seg_no_valid_component", level=logging.DEBUG)
+        plog.event(
+            "seg_no_valid_component",
+            level=logging.DEBUG,
+            cursor_label=cursor_label,
+            n_components=n_labels - 1,
+        )
         return None
 
     x, y, w, h, area = stats[best_label]

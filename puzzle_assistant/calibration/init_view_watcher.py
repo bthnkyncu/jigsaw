@@ -54,11 +54,14 @@ class InitViewWatcher:
         self._started_at: float | None = None
         self._prev_board: np.ndarray | None = None
         self._stable_count = 0
+        # Monotonic time at which all init-view criteria first held continuously.
+        self._criteria_since: float | None = None
 
     def reset(self) -> None:
         self._started_at = None
         self._prev_board = None
         self._stable_count = 0
+        self._criteria_since = None
 
     def assess(
         self,
@@ -117,7 +120,19 @@ class InitViewWatcher:
             panel_bbox is None
             or panel_corr >= self._settings.init_view_panel_corr_min
         )
-        criteria_ok = stable_ok and variance_ok and panel_ok
+        criteria_now = stable_ok and variance_ok and panel_ok
+
+        # The puzzle fills in top-to-bottom over ~1s. Don't capture the instant
+        # the criteria first hold (bottom rows may still be settling) — require
+        # them to hold continuously for ``init_view_settle_delay_s`` first.
+        if criteria_now:
+            if self._criteria_since is None:
+                self._criteria_since = now
+            settled = (now - self._criteria_since) >= self._settings.init_view_settle_delay_s
+        else:
+            self._criteria_since = None
+            settled = False
+        criteria_ok = criteria_now and settled
 
         timed_out = (
             elapsed >= self._settings.init_view_wait_timeout_s and not criteria_ok
@@ -146,6 +161,7 @@ class InitViewWatcher:
             self._started_at = None
             self._stable_count = 0
             self._prev_board = None
+            self._criteria_since = None
         return decision
 
 

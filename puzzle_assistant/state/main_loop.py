@@ -26,10 +26,7 @@ from puzzle_assistant.config import Settings
 from puzzle_assistant.matching.engine import match_piece
 from puzzle_assistant.piece.group_detection import classify as classify_piece
 from puzzle_assistant.piece.pickup import pickup_from_window
-from puzzle_assistant.reference.target_map import (
-    build_from_init_view,
-    build_from_reference_panel,
-)
+from puzzle_assistant.reference.target_map import build_from_init_view
 from puzzle_assistant.state import state_machine as sm
 from puzzle_assistant.state.watchdog import watch
 from puzzle_assistant.utils import logger as plog
@@ -59,6 +56,7 @@ class MainLoop:
         self._handle: int | None = None
         self._last_panel_check_ts = 0.0
         self._init_view_watcher = InitViewWatcher(settings)
+        self._prev_state = sm.State.IDLE
         self._running = False
 
     def run(self, max_iterations: int | None = None) -> None:
@@ -102,12 +100,24 @@ class MainLoop:
                 return
             self._frame_count += 1
 
+            # Fresh entry into WAIT_FOR_NEW_PUZZLE (new game / drift / panel
+            # change) must start the init-view watcher from scratch — otherwise
+            # the previous game's stale stable-frame count and start time leak
+            # in and the watcher neither captures nor times out.
+            if (
+                self._ctx.state == sm.State.WAIT_FOR_NEW_PUZZLE
+                and self._prev_state != sm.State.WAIT_FOR_NEW_PUZZLE
+            ):
+                self._init_view_watcher.reset()
+                self._ctx.fallback_warning_issued = False
+
             if self._ctx.state == sm.State.WAIT_FOR_NEW_PUZZLE:
                 self._try_calibrate(frame)
             elif self._ctx.state in (sm.State.READY, sm.State.TRACKING):
                 self._monitor_panel(frame)
                 self._monitor_board_bbox(frame)
                 self._handle_mouse_events(frame)
+            self._prev_state = self._ctx.state
         except Exception as exc:
             plog.event(
                 "tick_exception",
@@ -204,25 +214,21 @@ class MainLoop:
                 )
                 return
 
-        # Fallback path: timeout, use the right-side reference panel.
-        if decision.timed_out and panel_bbox is not None:
-            grid = estimate_grid_from_aspect(board_bbox.w, board_bbox.h, self._settings)
-            if grid is not None:
-                panel_crop = frame[panel_bbox.y : panel_bbox.y + panel_bbox.h,
-                                   panel_bbox.x : panel_bbox.x + panel_bbox.w]
-                tmap = build_from_reference_panel(
-                    panel_crop, grid, board_bbox.w, board_bbox.h, self._settings
-                )
-                sm.on_calibrated_fallback(
-                    self._ctx, board_bbox, grid, tmap, panel_bbox, panel_signature
-                )
-                if not self._ctx.fallback_warning_issued:
-                    self._notifier.notify(
-                        "Yapboz Asistanı",
-                        "Düşük kaliteli kaynak — yeni yapboz başlatmanızı öneriyorum.",
-                        urgency="critical",
-                    )
-                    self._ctx.fallback_warning_issued = True
+        # Timeout: the assembled init view never appeared (board stayed empty
+        # or we missed the ~2s window). The right-side panel is far too small
+        # (~5-8 px per piece at 250 pieces) to produce usable matches, so we do
+        # NOT calibrate from it — that path produced the bad predictions. Keep
+        # waiting and prompt the user to (re)start a game so we can grab a
+        # high-quality reference from the assembled board.
+        if decision.timed_out and not self._ctx.fallback_warning_issued:
+            self._notifier.notify(
+                "Yapboz Asistanı",
+                "Yapbozun yapılı halini göremedim — lütfen yeni oyun başlatın.",
+                urgency="critical",
+            )
+            self._ctx.fallback_warning_issued = True
+            # The watcher already reset its own clock on timeout, so the next
+            # assembled view within the next window will be captured.
 
     def _monitor_panel(self, frame: Any) -> None:
         now = time.monotonic()
