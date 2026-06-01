@@ -82,10 +82,13 @@ class Settings:
     template_weight: float = 0.50
     feature_weight: float = 0.30
     color_weight: float = 0.20
-    # Blended CCORR+CCOEFF score on a correct localization typically lands in
-    # 0.45–0.75; the Puzzle_Game prototype gated at 0.38. Margin is tiny on a
-    # textured board (neighbouring offsets score similarly), so it's loose.
-    min_combined_score: float = 0.40
+    # Gate on the blended appearance score. Recalibrated for the ORB-as-bonus
+    # blend (engine.match): with ORB no longer dead-weighting the score, a
+    # correctly-localized piece now lands ~0.60–0.92 (was ~0.32–0.49), while
+    # wrong-puzzle pieces land ~0.45. Measured separation: at 0.55 the live
+    # captures keep ~87 % recall while ~87 % of cross-puzzle pieces are
+    # rejected — the balance point for the ≥80 % predict / ~95 % accuracy goal.
+    min_combined_score: float = 0.55
     # Raised from 0.02 — at 0.02 ambiguous (near-tie) matches were accepted and
     # placed in the wrong cell. A wrong overlay is worse than none, so require
     # a clearer lead over the runner-up.
@@ -103,7 +106,8 @@ class Settings:
     match_upscale_factor: float = 1.5
 
     # --- Matching (fallback quality) ---
-    fallback_min_combined_score: float = 0.50
+    # Bumped in step with the primary gate for the ORB-as-bonus score scale.
+    fallback_min_combined_score: float = 0.65
     fallback_min_margin: float = 0.06
 
     # --- Overlay ---

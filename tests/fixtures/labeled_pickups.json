@@ -1,0 +1,268 @@
+[
+  {
+    "sample": "pickup_0000",
+    "dir": "captures/pickup_0000",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      9,
+      12
+    ]
+  },
+  {
+    "sample": "pickup_0001",
+    "dir": "captures/pickup_0001",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      9,
+      12
+    ]
+  },
+  {
+    "sample": "pickup_0002",
+    "dir": "captures/pickup_0002",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      3,
+      14
+    ]
+  },
+  {
+    "sample": "pickup_0003",
+    "dir": "captures/pickup_0003",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      8,
+      18
+    ]
+  },
+  {
+    "sample": "pickup_0004",
+    "dir": "captures/pickup_0004",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      11,
+      3
+    ]
+  },
+  {
+    "sample": "pickup_0005",
+    "dir": "captures/pickup_0005",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      11,
+      3
+    ]
+  },
+  {
+    "sample": "pickup_0006",
+    "dir": "captures/pickup_0006",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      11,
+      3
+    ]
+  },
+  {
+    "sample": "pickup_0007",
+    "dir": "captures/pickup_0007",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      2,
+      14
+    ]
+  },
+  {
+    "sample": "pickup_0008",
+    "dir": "captures/pickup_0008",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      5,
+      1
+    ]
+  },
+  {
+    "sample": "pickup_0009",
+    "dir": "captures/pickup_0009",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      5,
+      1
+    ]
+  },
+  {
+    "sample": "pickup_0010",
+    "dir": "captures/pickup_0010",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      11,
+      11
+    ]
+  },
+  {
+    "sample": "pickup_0011",
+    "dir": "captures/pickup_0011",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      2,
+      14
+    ]
+  },
+  {
+    "sample": "pickup_0012",
+    "dir": "captures/pickup_0012",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      12,
+      12
+    ]
+  },
+  {
+    "sample": "pickup_0013",
+    "dir": "captures_clean/pickup_0013",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      10,
+      7
+    ]
+  },
+  {
+    "sample": "pickup_0014",
+    "dir": "captures_clean/pickup_0014",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      10,
+      3
+    ]
+  },
+  {
+    "sample": "pickup_0015",
+    "dir": "captures_clean/pickup_0015",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      3,
+      16
+    ]
+  },
+  {
+    "sample": "pickup_0016",
+    "dir": "captures_clean/pickup_0016",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      11,
+      12
+    ]
+  },
+  {
+    "sample": "pickup_0017",
+    "dir": "captures_clean/pickup_0017",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      11,
+      11
+    ]
+  },
+  {
+    "sample": "pickup_0018",
+    "dir": "captures_clean/pickup_0018",
+    "grid": {
+      "cols": 19,
+      "rows": 13,
+      "cell_w": 38.526315789473685,
+      "cell_h": 39.76923076923077
+    },
+    "correct_cell": [
+      7,
+      0
+    ]
+  }
+]

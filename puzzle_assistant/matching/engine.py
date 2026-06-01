@@ -156,14 +156,16 @@ def _match(
         patch = board[y:y + ph, x:x + pw]
         color_score = _color_agreement(piece_lab, patch, fg)
         orb_score = _orb_agreement(orb, bf, p_desc, patch, settings)
-        # CCOEFF localizes; ORB breaks repeated-texture ties; colour/CCORR
-        # penalize wrong-colour positions.
-        combined = (
-            0.45 * ccoeff_score
-            + 0.30 * orb_score
-            + 0.15 * cr
-            + 0.10 * color_score
-        )
+        # Base appearance score from the three signals that actually fire on a
+        # dragged ~60 px puzzle piece. ORB used to be a fixed 0.30 weight, but
+        # its measured median on these pieces is 0.0 (too few keypoints; the
+        # cross-check + Hamming gate is too strict at this resolution), so that
+        # 0.30 was dead weight dragging *every* combined score down ~30 % and
+        # pushing correctly-localized pieces below the gate. ORB now only adds a
+        # bonus when it genuinely fires (repeated-texture pieces — fur, petals),
+        # so it can still break those ties without capping the common case.
+        base = 0.60 * ccoeff_score + 0.25 * cr + 0.15 * color_score
+        combined = min(1.0, base + 0.15 * orb_score)
         scored.append((x, y, combined))
 
     scored.sort(key=lambda s: s[2], reverse=True)
