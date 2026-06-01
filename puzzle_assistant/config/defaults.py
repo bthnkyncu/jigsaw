@@ -75,6 +75,17 @@ class Settings:
     group_area_ratio: float = 4.0
     piece_core_erode_ratio: float = 0.15
 
+    # --- Board state (empty-cell tracking) ---
+    # While READY, the filled[][] matrix is refreshed at most this often
+    # (wall-clock s) so the empty-cell filter has a current view without
+    # re-scanning every frame.
+    board_state_refresh_s: float = 0.5
+    # A cell counts as filled once less than (1 - this) of it is bare board
+    # light — i.e. a placed piece covers most of it. Live boards split cleanly
+    # (empty cells ≈1.0 light fraction, filled ≈0.0), so 0.45 sits in the empty
+    # gap and classifies robustly without falsely marking empty cells filled.
+    empty_cell_min_content_ratio: float = 0.45
+
     # --- Matching (primary quality) ---
     # template/feature/color weights are retained for config compatibility but
     # the sliding-window matcher (matching.engine) blends CCORR + CCOEFF with

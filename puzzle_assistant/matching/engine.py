@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import time
+from typing import TYPE_CHECKING
 
 import cv2
 import numpy as np
@@ -36,6 +37,9 @@ from puzzle_assistant.reference.target_map import TargetMap
 from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import CellAddress
 
+if TYPE_CHECKING:
+    from puzzle_assistant.piece.board_state import BoardState
+
 _FG_THRESHOLD = 35.0
 
 
@@ -43,11 +47,19 @@ def match_piece(
     piece_bgr: np.ndarray,
     target_map: TargetMap,
     settings: Settings,
+    board_state: "BoardState | None" = None,
 ) -> MatchResult:
-    """Localize ``piece_bgr`` on the reference board and return its cell."""
+    """Localize ``piece_bgr`` on the reference board and return its cell.
+
+    When ``board_state`` is given, candidate positions that map to an
+    already-filled cell are dropped before the best/runner-up decision. The
+    repeated bouquet image makes a piece tie across distant board positions;
+    once one of those twins is filled, removing it leaves the true empty cell
+    and the margin recovers.
+    """
 
     started = time.monotonic()
-    result = _match(piece_bgr, target_map, settings)
+    result = _match(piece_bgr, target_map, settings, board_state)
     elapsed_ms = (time.monotonic() - started) * 1000.0
     plog.event(
         "match",
@@ -67,6 +79,7 @@ def _match(
     piece_bgr: np.ndarray,
     target_map: TargetMap,
     settings: Settings,
+    board_state: "BoardState | None" = None,
 ) -> MatchResult:
     if piece_bgr.size == 0:
         return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="empty_piece")
@@ -169,6 +182,23 @@ def _match(
         scored.append((x, y, combined))
 
     scored.sort(key=lambda s: s[2], reverse=True)
+
+    # Empty-cell filter. A dragged piece can only land in an empty cell, so
+    # drop any candidate whose cell is already filled. On the repeated bouquet
+    # image a piece ties across distant positions; once one twin is placed,
+    # removing it leaves the true empty cell and the margin recovers. If every
+    # candidate maps to a filled cell the board-state is likely stale, so fall
+    # through unfiltered rather than fabricating a rejection.
+    if board_state is not None:
+        empty = [
+            cand for cand in scored
+            if not board_state.is_filled(
+                *_xy_to_cell(cand[0], cand[1], pw, ph, scale, target_map)
+            )
+        ]
+        if empty:
+            scored = empty
+
     best_x, best_y, best_combined = scored[0]
     second = scored[1][2] if len(scored) > 1 else 0.0
     margin = best_combined - second
@@ -203,11 +233,7 @@ def _match(
             rejected_reason="low_margin", texture=texture,
         )
 
-    # Piece center on the (upscaled) board → back to original scale → grid cell.
-    center_x = (best_x + pw / 2) / scale
-    center_y = (best_y + ph / 2) / scale
-    col = int(min(target_map.grid.cols - 1, max(0, center_x // target_map.grid.cell_w)))
-    row = int(min(target_map.grid.rows - 1, max(0, center_y // target_map.grid.cell_h)))
+    row, col = _xy_to_cell(best_x, best_y, pw, ph, scale, target_map)
     return MatchResult(
         cell=CellAddress(row=row, col=col),
         combined=best_combined,
@@ -215,6 +241,17 @@ def _match(
         rejected_reason=None,
         texture=texture,
     )
+
+
+def _xy_to_cell(
+    x: int, y: int, pw: int, ph: int, scale: float, target_map: TargetMap
+) -> tuple[int, int]:
+    """Map a candidate's top-left (upscaled-board) pixel to ``(row, col)``."""
+    center_x = (x + pw / 2) / scale
+    center_y = (y + ph / 2) / scale
+    col = int(min(target_map.grid.cols - 1, max(0, center_x // target_map.grid.cell_w)))
+    row = int(min(target_map.grid.rows - 1, max(0, center_y // target_map.grid.cell_h)))
+    return row, col
 
 
 def _orb_agreement(

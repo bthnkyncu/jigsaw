@@ -24,6 +24,7 @@ from puzzle_assistant.calibration.reference_panel import (
 )
 from puzzle_assistant.config import Settings
 from puzzle_assistant.matching.engine import match_piece
+from puzzle_assistant.piece.board_state import BoardState
 from puzzle_assistant.piece.group_detection import classify as classify_piece
 from puzzle_assistant.piece.pickup import pickup_from_window
 from puzzle_assistant.reference.target_map import build_from_init_view
@@ -58,6 +59,8 @@ class MainLoop:
         self._init_view_watcher = InitViewWatcher(settings)
         self._prev_state = sm.State.IDLE
         self._running = False
+        self._board_state: BoardState | None = None
+        self._last_board_state_ts = 0.0
 
     def run(self, max_iterations: int | None = None) -> None:
         """Drive the loop. ``max_iterations`` is used by tests; ``None`` = forever."""
@@ -112,10 +115,16 @@ class MainLoop:
                 self._ctx.fallback_warning_issued = False
 
             if self._ctx.state == sm.State.WAIT_FOR_NEW_PUZZLE:
+                self._board_state = None
                 self._try_calibrate(frame)
             elif self._ctx.state in (sm.State.READY, sm.State.TRACKING):
                 self._monitor_panel(frame)
                 self._monitor_board_bbox(frame)
+                # Refresh the filled-cell map only while READY: during a drag
+                # detect_board is unreliable (the moving piece swells the bbox),
+                # so a TRACKING-time scan would be noisy.
+                if self._ctx.state == sm.State.READY:
+                    self._refresh_board_state(frame)
                 self._handle_mouse_events(frame)
             self._prev_state = self._ctx.state
         except Exception as exc:
@@ -263,6 +272,26 @@ class MainLoop:
                 urgency="low",
             )
 
+    def _refresh_board_state(self, frame: Any) -> None:
+        grid = self._ctx.artifacts.grid
+        board_bbox = self._ctx.artifacts.board_bbox
+        if grid is None or board_bbox is None:
+            return
+        now = time.monotonic()
+        if (
+            self._board_state is not None
+            and now - self._last_board_state_ts < self._settings.board_state_refresh_s
+        ):
+            return
+        self._last_board_state_ts = now
+        if self._board_state is None:
+            self._board_state = BoardState(grid)
+        crop = frame[
+            board_bbox.y : board_bbox.y + board_bbox.h,
+            board_bbox.x : board_bbox.x + board_bbox.w,
+        ]
+        self._board_state.update(crop, self._settings)
+
     def _handle_mouse_events(self, frame: Any) -> None:
         window_bbox = self._ctx.artifacts.window_bbox
         if window_bbox is None or self._ctx.artifacts.target_map is None \
@@ -301,7 +330,9 @@ class MainLoop:
         # wants the full piece silhouette (with background) — it computes its
         # own foreground mask. The eroded core would discard the tab shape that
         # helps disambiguate position.
-        match = match_piece(result.piece.piece_full, tmap, self._settings)
+        match = match_piece(
+            result.piece.piece_full, tmap, self._settings, self._board_state
+        )
         if match.cell is None:
             return
         target_local = cell_bbox(board_bbox, grid, match.cell)
