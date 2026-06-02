@@ -10,16 +10,18 @@ if ($env:CONDA_DEFAULT_ENV -ne "puzzle") {
     exit 1
 }
 
-pip install --quiet pyinstaller pywin32 win10toast
+pip install --quiet pyinstaller customtkinter pywin32 win10toast
 
 if (Test-Path build) { Remove-Item -Recurse -Force build }
 if (Test-Path dist)  { Remove-Item -Recurse -Force dist }
 
 # Entry is the GUI panel (Baslat/Durdur + status + instructions). --windowed
-# keeps it a GUI app with no console window.
+# keeps it a GUI app with no console window. --collect-all customtkinter
+# bundles its theme JSON data files.
 pyinstaller --onefile --windowed --name "YapbozAsistani" `
     --paths . `
     --collect-submodules pynput `
+    --collect-all customtkinter `
     --collect-all win10toast `
     --hidden-import "win32gui" `
     --hidden-import "win32con" `

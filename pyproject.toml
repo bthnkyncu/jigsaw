@@ -18,6 +18,7 @@ dependencies = [
     "Pillow>=10.0",
     "python-xlib>=0.33; platform_system == 'Linux'",
     "pynput>=1.7",
+    "customtkinter>=5.2",
 ]
 
 [project.optional-dependencies]
