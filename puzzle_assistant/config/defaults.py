@@ -110,6 +110,19 @@ class Settings:
     # across the board), so they need a much larger margin to be trusted.
     piece_texture_flat_max: float = 18.0
     flat_piece_min_margin: float = 0.15
+
+    # Flat-edge border constraint. A puzzle piece with a *straight* (flat) edge
+    # must sit on the corresponding board border (flat top → row 0, flat left →
+    # col 0, etc.); a corner piece has two flat edges. We read the flat edges
+    # off the dragged piece's silhouette and drop candidate cells that aren't on
+    # that border — like the board-state filter, this only *removes* candidates,
+    # so it can never cause a wrong placement. It rescues uniform-coloured
+    # border regions (sky/water) where appearance ties a border piece against
+    # spurious interior peaks. An edge counts as flat when its silhouette
+    # boundary profile (central band, 10–90th pct range) varies less than this
+    # fraction of the piece size; a tab/blank bulges ~0.2–0.3, so 0.12 keeps a
+    # wide safety gap and flat detection biases to false-negative (no harm).
+    flat_edge_max_deviation: float = 0.12
     # The board reference (~709×501, cell ~42 px) is upscaled by this factor
     # before matching so CCOEFF and ORB have enough detail to separate
     # repeated-texture pieces. 1.5 → cell ~63 px, keeping P95 latency under the

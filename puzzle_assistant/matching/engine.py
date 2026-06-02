@@ -109,6 +109,11 @@ def _match(
         return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="empty_fg")
     cx0, cx1 = int(cols_any[0]), int(cols_any[-1]) + 1
     cy0, cy1 = int(rows_any[0]), int(rows_any[-1]) + 1
+    # If the silhouette runs into the original crop border the piece was likely
+    # clipped there, so that side's straight edge is an artefact — suppress flat
+    # detection on it (precision guard against a false border constraint).
+    orig_h, orig_w = piece_bgr.shape[:2]
+    clipped = (cy0 == 0, cy1 >= orig_h, cx0 == 0, cx1 >= orig_w)  # top,bottom,left,right
     piece = piece_bgr[cy0:cy1, cx0:cx1]
     fg = fg[cy0:cy1, cx0:cx1]
     if scale > 1.0:
@@ -199,6 +204,23 @@ def _match(
         if empty:
             scored = empty
 
+    # Flat-edge border constraint. A piece with a straight (flat) silhouette
+    # edge can only sit on the matching board border, so drop candidates that
+    # aren't on it. Like the empty-cell filter this only removes candidates
+    # (never invents a match), so it cannot cause a wrong placement; if it would
+    # empty the set the detection is untrusted and we fall through unfiltered.
+    flats = _detect_flat_edges(fg, clipped, settings)
+    if any(flats):
+        on_border = [
+            cand for cand in scored
+            if _on_border(
+                _xy_to_cell(cand[0], cand[1], pw, ph, scale, target_map),
+                flats, target_map,
+            )
+        ]
+        if on_border:
+            scored = on_border
+
     best_x, best_y, best_combined = scored[0]
     second = scored[1][2] if len(scored) > 1 else 0.0
     margin = best_combined - second
@@ -252,6 +274,73 @@ def _xy_to_cell(
     col = int(min(target_map.grid.cols - 1, max(0, center_x // target_map.grid.cell_w)))
     row = int(min(target_map.grid.rows - 1, max(0, center_y // target_map.grid.cell_h)))
     return row, col
+
+
+# Central fraction of each edge sampled for flatness, avoiding the corners and
+# any adjacent-edge tab that would contaminate the profile.
+_FLAT_EDGE_BAND = 0.5
+
+
+def _detect_flat_edges(
+    fg: np.ndarray, clipped: tuple[bool, bool, bool, bool], settings: Settings
+) -> tuple[bool, bool, bool, bool]:
+    """Which of (top, bottom, left, right) silhouette edges are flat (straight).
+
+    A flat edge means a straight board border; a tab/blank bulges or notches in
+    its centre. We measure the boundary profile's 10–90th percentile range over
+    the central band of the edge: flat → near-constant (small range), tab/blank
+    → large range. Sides flagged ``clipped`` (silhouette ran into the crop
+    border) are forced non-flat, since a clipped edge is straight by artefact.
+    """
+    h, w = fg.shape[:2]
+    if h < 12 or w < 12:
+        return (False, False, False, False)
+    thresh = settings.flat_edge_max_deviation
+    sides = ("top", "bottom", "left", "right")
+    out = [
+        (not clip) and _edge_is_flat(fg, side, thresh)
+        for side, clip in zip(sides, clipped, strict=True)
+    ]
+    return (out[0], out[1], out[2], out[3])
+
+
+def _edge_is_flat(fg: np.ndarray, side: str, thresh: float) -> bool:
+    h, w = fg.shape[:2]
+    profile: list[int] = []
+    if side in ("top", "bottom"):
+        lo, hi = int(w * (1 - _FLAT_EDGE_BAND) / 2), int(w * (1 + _FLAT_EDGE_BAND) / 2)
+        for x in range(lo, max(lo + 1, hi)):
+            idx = np.where(fg[:, x] > 0)[0]
+            if idx.size:
+                profile.append(int(idx[0]) if side == "top" else int(idx[-1]))
+        extent = h
+    else:
+        lo, hi = int(h * (1 - _FLAT_EDGE_BAND) / 2), int(h * (1 + _FLAT_EDGE_BAND) / 2)
+        for y in range(lo, max(lo + 1, hi)):
+            idx = np.where(fg[y, :] > 0)[0]
+            if idx.size:
+                profile.append(int(idx[0]) if side == "left" else int(idx[-1]))
+        extent = w
+    if len(profile) < 3 or extent <= 0:
+        return False
+    arr = np.asarray(profile, dtype=np.float32)
+    rng = float(np.percentile(arr, 90) - np.percentile(arr, 10))
+    return bool(rng / float(extent) < thresh)
+
+
+def _on_border(
+    cell: tuple[int, int], flats: tuple[bool, bool, bool, bool], target_map: TargetMap
+) -> bool:
+    """True if ``cell`` lies on every border implied by the piece's flat edges."""
+    row, col = cell
+    top, bottom, left, right = flats
+    rows, cols = target_map.grid.rows, target_map.grid.cols
+    return (
+        (not top or row == 0)
+        and (not bottom or row == rows - 1)
+        and (not left or col == 0)
+        and (not right or col == cols - 1)
+    )
 
 
 def _orb_agreement(

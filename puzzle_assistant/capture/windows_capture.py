@@ -17,7 +17,7 @@ from typing import Any
 import mss
 import numpy as np
 
-from puzzle_assistant.capture.interfaces import WindowCandidate
+from puzzle_assistant.capture.interfaces import WindowCandidate, title_matches
 from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import Bbox
 
@@ -37,7 +37,7 @@ class WindowsWindowCapture:
             if not win32gui.IsWindowVisible(hwnd):
                 return True
             title = win32gui.GetWindowText(hwnd)
-            if not title or title_substring not in title:
+            if not title or not title_matches(title, title_substring):
                 return True
             rect = win32gui.GetWindowRect(hwnd)
             x, y, x2, y2 = rect

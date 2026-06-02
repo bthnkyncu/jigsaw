@@ -18,6 +18,16 @@ class WindowCandidate:
     bbox: Bbox
 
 
+def title_matches(title: str, substring: str) -> bool:
+    """Case-insensitive substring match for window titles.
+
+    The dev table is "Masa #2 @ YapBoz Salonu 2"; a customer's window may read
+    "Yapboz oyun salonu" (lower-case 'b'). Matching case-insensitively makes the
+    same default substring catch both.
+    """
+    return substring.lower() in title.lower()
+
+
 MouseEventType = Literal["down", "up", "move"]
 
 

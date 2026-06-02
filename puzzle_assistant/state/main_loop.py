@@ -91,6 +91,18 @@ class MainLoop:
     def stop(self) -> None:
         self._running = False
 
+    def status_snapshot(self) -> dict[str, object]:
+        """Read-only snapshot for the GUI status panel (safe to call from
+        another thread — it only reads simple fields)."""
+        tmap = self._ctx.artifacts.target_map
+        return {
+            "running": self._running,
+            "state": self._ctx.state.value,
+            "window_found": self._handle is not None,
+            "calibrated": tmap is not None,
+            "quality": tmap.quality if tmap is not None else None,
+        }
+
     # ------------------------------ private -------------------------------
 
     def _tick(self) -> None:
@@ -142,7 +154,7 @@ class MainLoop:
                 self._settings.game_window_title_substring
             )
             # The 'Masa #' title is the actual play window; prefer it when present.
-            masa = [c for c in candidates if "Masa" in c.title]
+            masa = [c for c in candidates if "masa" in c.title.lower()]
             chosen = masa[0] if masa else (candidates[0] if candidates else None)
             if chosen is None:
                 if self._handle is not None:

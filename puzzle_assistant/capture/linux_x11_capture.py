@@ -22,7 +22,7 @@ from Xlib.error import BadDrawable, BadMatch, BadWindow, XError
 from Xlib.ext import composite
 from Xlib.xobject.drawable import Window
 
-from puzzle_assistant.capture.interfaces import WindowCandidate
+from puzzle_assistant.capture.interfaces import WindowCandidate, title_matches
 from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import Bbox
 
@@ -116,7 +116,7 @@ class LinuxX11WindowCapture:
         out: list[WindowCandidate],
     ) -> None:
         title = self._window_title(window)
-        if title and title_substring in title:
+        if title and title_matches(title, title_substring):
             bbox = self._absolute_bbox(window)
             if bbox is not None and bbox.area > 0:
                 out.append(

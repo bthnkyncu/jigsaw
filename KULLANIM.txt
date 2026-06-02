@@ -44,20 +44,24 @@ Ubuntu 22.04:
 4. KULLANIM AKIŞI
 -----------------
 
-1. Asistanı çalıştırın. Sistem tepsisinde bildirim alacaksınız:
-   "Pencere bulundu — yeni oyunu başlatın."
+1. Gamyun YapBoz Salonu uygulamasını açın, bir masaya girin
+   ("Yapboz oyun salonu" / "Masa #..").
 
-2. Gamyun YapBoz Salonu uygulamasını açın, bir masaya girin.
+2. YapbozAsistani.exe'yi çalıştırın. Açılan küçük pencerede
+   BAŞLAT'a basın. "Durum" satırı asistanın ne yaptığını gösterir:
+     - "Oyun penceresi aranıyor…"  → oyun penceresi henüz bulunamadı
+     - "Yeni oyun bekleniyor"      → pencere bulundu, YENİ OYUN'a basın
+     - "Hazır"                      → kalibre oldu, oynayabilirsiniz
 
 3. Oyunda "YENİ OYUN" butonuna basın. Tahta ~2 saniye boyunca
-   tam yapılmış görüntüyle gözükür.
+   tam yapılmış görüntüyle gözükür; asistan onu referans alır.
 
-4. Asistan kalibrasyonu bitirince "Hazır — bol şans!" bildirimi
-   gelir. Artık oyunu oynayabilirsiniz.
+4. Durum "Hazır" olunca bir parçayı fareyle tutup sürükleyin.
+   Asistan parçanın ait olduğu hücreyi yarı saydam YEŞİL çerçeveyle
+   gösterir. Birleşik parça gruplarında çerçeve GÖSTERİLMEZ.
 
-5. Bir parçayı fareyle tutup sürüklerseniz, asistan parçanın hangi
-   hücreye ait olduğunu yarı saydam yeşil çerçeveyle gösterir.
-   Birleşik parça gruplarında çerçeve GÖSTERİLMEZ (sessiz geçer).
+5. Asistanı istediğiniz an DURDUR ile durdurup BAŞLAT ile tekrar
+   başlatabilirsiniz. Kapatmak için pencereyi kapatmanız yeterli.
 
 
 5. SIK KARŞILAŞILAN DURUMLAR

@@ -15,13 +15,15 @@ pip install --quiet pyinstaller pywin32 win10toast
 if (Test-Path build) { Remove-Item -Recurse -Force build }
 if (Test-Path dist)  { Remove-Item -Recurse -Force dist }
 
-pyinstaller --onefile --noconsole --name "YapbozAsistani" `
-    --add-data "puzzle_assistant\config\defaults.py;puzzle_assistant\config" `
-    --hidden-import "pynput.mouse._win32" `
+# Entry is the GUI panel (Baslat/Durdur + status + instructions). --windowed
+# keeps it a GUI app with no console window.
+pyinstaller --onefile --windowed --name "YapbozAsistani" `
+    --paths . `
+    --collect-submodules pynput `
+    --collect-all win10toast `
     --hidden-import "win32gui" `
     --hidden-import "win32con" `
     --noconfirm `
-    -p . `
-    puzzle_assistant\main.py
+    puzzle_assistant\gui.py
 
 Write-Host "`nBuilt: dist\YapbozAsistani.exe"
