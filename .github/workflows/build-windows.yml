@@ -1,13 +1,18 @@
 name: Build Windows EXE
 
 # Produces dist/YapbozAsistani.exe on a Windows runner (PyInstaller cannot
-# cross-compile from Linux, so the build must run on Windows). Trigger it
-# manually from the Actions tab ("Run workflow"), or by pushing a v* tag.
+# cross-compile from Linux, so the build must run on Windows). Runs
+# automatically on every push to master/main, on v* tags, and on manual
+# dispatch. The branch trigger is what makes a run appear right after you push
+# (a dispatch-only workflow on a non-default branch shows no run).
 on:
-  workflow_dispatch:
   push:
+    branches:
+      - master
+      - main
     tags:
       - "v*"
+  workflow_dispatch:
 
 jobs:
   build:
