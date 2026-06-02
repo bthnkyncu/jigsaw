@@ -76,10 +76,27 @@ class WindowsWindowCapture:
         return result
 
     def raise_window(self, handle: int) -> None:  # pragma: no cover
+        """Bring the game window to the front for capture WITHOUT changing its
+        size, position, or maximize state, and without stealing focus.
+
+        The previous implementation called ``ShowWindow(SW_RESTORE)`` every
+        refresh, which un-maximizes a maximized window — so a full-screen game
+        table kept shrinking and could not be maximized while the assistant was
+        running. We now only un-minimize a *minimized* window; for a maximized
+        or normal window we just lift its Z-order (no move/resize/activate), so
+        the user can maximize and resize the game freely.
+        """
         import win32con
         import win32gui
         try:
-            win32gui.ShowWindow(handle, win32con.SW_RESTORE)
-            win32gui.SetForegroundWindow(handle)
+            placement = win32gui.GetWindowPlacement(handle)
+            if placement[1] == win32con.SW_SHOWMINIMIZED:
+                win32gui.ShowWindow(handle, win32con.SW_RESTORE)
+            win32gui.SetWindowPos(
+                handle,
+                win32con.HWND_TOP,
+                0, 0, 0, 0,
+                win32con.SWP_NOMOVE | win32con.SWP_NOSIZE | win32con.SWP_NOACTIVATE,
+            )
         except OSError:
             pass
