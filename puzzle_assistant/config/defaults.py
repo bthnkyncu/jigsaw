@@ -80,6 +80,12 @@ class Settings:
     # (wall-clock s) so the empty-cell filter has a current view without
     # re-scanning every frame.
     board_state_refresh_s: float = 0.5
+    # Board-bbox drift check (detect window move/zoom) runs at most this often.
+    # detect_board on a full 2560×1440 capture is expensive; running it every
+    # tick (20 FPS) floods board_detect_no_valid_contour and pegs a CPU core,
+    # which made the mouse feel laggy on Windows. ~1.5 s is plenty to catch a
+    # deliberate window move, and it now runs only while READY (never mid-drag).
+    board_bbox_check_interval_s: float = 1.5
     # A cell counts as filled once less than (1 - this) of it is bare board
     # light — i.e. a placed piece covers most of it. Live boards split cleanly
     # (empty cells ≈1.0 light fraction, filled ≈0.0), so 0.45 sits in the empty

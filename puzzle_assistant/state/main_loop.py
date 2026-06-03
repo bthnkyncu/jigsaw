@@ -61,6 +61,7 @@ class MainLoop:
         self._running = False
         self._board_state: BoardState | None = None
         self._last_board_state_ts = 0.0
+        self._last_board_bbox_check_ts = 0.0
 
     def run(self, max_iterations: int | None = None) -> None:
         """Drive the loop. ``max_iterations`` is used by tests; ``None`` = forever."""
@@ -131,11 +132,12 @@ class MainLoop:
                 self._try_calibrate(frame)
             elif self._ctx.state in (sm.State.READY, sm.State.TRACKING):
                 self._monitor_panel(frame)
-                self._monitor_board_bbox(frame)
-                # Refresh the filled-cell map only while READY: during a drag
-                # detect_board is unreliable (the moving piece swells the bbox),
-                # so a TRACKING-time scan would be noisy.
+                # detect_board is expensive and unreliable during a drag (the
+                # moving piece swells the contour), so run the drift check and
+                # the filled-cell scan only while READY — never mid-TRACKING.
+                # This also keeps the per-drag tick light (less mouse lag).
                 if self._ctx.state == sm.State.READY:
+                    self._monitor_board_bbox(frame)
                     self._refresh_board_state(frame)
                 self._handle_mouse_events(frame)
             self._prev_state = self._ctx.state
@@ -271,6 +273,10 @@ class MainLoop:
             sm.on_panel_signature_changed(self._ctx)
 
     def _monitor_board_bbox(self, frame: Any) -> None:
+        now = time.monotonic()
+        if now - self._last_board_bbox_check_ts < self._settings.board_bbox_check_interval_s:
+            return
+        self._last_board_bbox_check_ts = now
         bb_now = detect_board(frame, self._settings)
         old = self._ctx.artifacts.board_bbox
         if bb_now is None or old is None:

@@ -24,6 +24,7 @@ from pathlib import Path
 import customtkinter as ctk
 
 from puzzle_assistant.config import Settings, load_settings
+from puzzle_assistant.overlay.gui_overlay import GuiOverlay
 from puzzle_assistant.state.main_loop import MainLoop
 from puzzle_assistant.utils import dpi
 from puzzle_assistant.utils import logger as plog
@@ -31,7 +32,6 @@ from puzzle_assistant.utils.platform import (
     Platform,
     make_mouse_hook,
     make_notifier,
-    make_overlay,
     make_window_capture,
 )
 
@@ -147,6 +147,11 @@ class AssistantGUI:
         self.root.title("Yapboz Asistanı")
         self.root.geometry("500x540")
         self.root.minsize(460, 500)
+
+        # One Tk root for the whole process: the overlay is a Toplevel of this
+        # root driven on the main thread (see GuiOverlay) — never a second
+        # tk.Tk() on a worker thread.
+        self._overlay = GuiOverlay(self.root, settings)
 
         self._build_widgets()
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
@@ -365,9 +370,8 @@ class AssistantGUI:
             return
         capture = make_window_capture(self._platform)
         hook = make_mouse_hook(self._platform)
-        overlay = make_overlay(self._platform)
         notifier = make_notifier(self._platform)
-        self._loop = MainLoop(self._settings, capture, hook, overlay, notifier)
+        self._loop = MainLoop(self._settings, capture, hook, self._overlay, notifier)
         self._thread = threading.Thread(
             target=self._loop.run, name="main-loop", daemon=True
         )
