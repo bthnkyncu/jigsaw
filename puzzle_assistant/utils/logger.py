@@ -54,16 +54,27 @@ def _safe(value: Any) -> Any:
 
 
 _INSTALLED = False
+_LOG_PATH: Path | None = None
+
+
+def current_log_path() -> Path | None:
+    """Absolute path of the active log file, or ``None`` before ``install``.
+
+    Lets the in-app log viewer read exactly what is being written, regardless
+    of the process working directory.
+    """
+    return _LOG_PATH
 
 
 def install(log_dir: Path, log_filename: str, rotate_bytes: int, rotate_backups: int) -> None:
     """Configure the root logger. Idempotent across calls."""
 
-    global _INSTALLED
+    global _INSTALLED, _LOG_PATH
     if _INSTALLED:
         return
 
     log_dir.mkdir(parents=True, exist_ok=True)
+    _LOG_PATH = (log_dir / log_filename).resolve()
     formatter = _JsonFormatter()
 
     root = logging.getLogger()

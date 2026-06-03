@@ -17,6 +17,7 @@ bundles cleanly with PyInstaller via ``--collect-all customtkinter``.
 from __future__ import annotations
 
 import argparse
+import json
 import threading
 from pathlib import Path
 
@@ -80,6 +81,52 @@ _NOTES: list[str] = [
     "bazı parçalar tahmin edilmeyebilir. Yanlış göstermektense hiç göstermez.",
 ]
 
+# High-frequency events hidden from the in-app log feed so the meaningful ones
+# (state changes, matches, errors) stay readable.
+_LOG_HIDE = {"board_detect_ok", "init_view_assess", "ref_panel_ok"}
+
+
+def _read_log_feed(max_events: int = 250) -> str:
+    """Tail the active log file into a compact, readable event feed.
+
+    Drops the high-frequency calibration spam (``_LOG_HIDE``) and renders each
+    remaining JSON event as ``HH:MM:SS  evt  k=v …`` so a non-developer can see
+    whether dragging a piece produces TRACKING / match events.
+    """
+    path = plog.current_log_path()
+    if path is None or not path.exists():
+        return "Log dosyası henüz yok. BAŞLAT'a basıp birkaç saniye bekleyin."
+    try:
+        lines = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    except OSError as exc:
+        return f"Log okunamadı: {exc}"
+
+    out: list[str] = []
+    for raw in lines:
+        raw = raw.strip()
+        if not raw:
+            continue
+        try:
+            rec = json.loads(raw)
+        except ValueError:
+            out.append(raw)
+            continue
+        evt = rec.get("evt", "?")
+        if evt in _LOG_HIDE:
+            continue
+        ts = str(rec.get("ts", ""))[11:19]
+        extras = "  ".join(
+            f"{k}={v}"
+            for k, v in rec.items()
+            if k not in ("ts", "lvl", "evt") and v is not None
+        )
+        mark = " !" if rec.get("lvl") in ("WARNING", "ERROR") else "  "
+        out.append(f"{ts}{mark} {evt}  {extras}".rstrip())
+
+    if not out:
+        return "Henüz önemli olay yok. BAŞLAT → yeni oyun → parça sürükleyin."
+    return "\n".join(out[-max_events:])
+
 
 class AssistantGUI:
     """Modern CustomTkinter control panel driving a background ``MainLoop``."""
@@ -90,6 +137,8 @@ class AssistantGUI:
         self._loop: MainLoop | None = None
         self._thread: threading.Thread | None = None
         self._help_win: ctk.CTkToplevel | None = None
+        self._logs_win: ctk.CTkToplevel | None = None
+        self._logs_box: ctk.CTkTextbox | None = None
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("green")
@@ -155,12 +204,20 @@ class AssistantGUI:
         )
         self._stop_btn.grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
-        # --- How-to-play button ---
+        # --- Secondary buttons: help + logs ---
+        secondary = ctk.CTkFrame(root, fg_color="transparent")
+        secondary.grid(row=3, column=0, sticky="ew", padx=20, pady=(6, 8))
+        secondary.grid_columnconfigure((0, 1), weight=1)
         ctk.CTkButton(
-            root, text="📖  Nasıl Oynanır?", height=44, command=self._open_help,
+            secondary, text="📖  Nasıl Oynanır?", height=44, command=self._open_help,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=_INFO, hover_color=_INFO_HOVER,
-        ).grid(row=3, column=0, sticky="ew", padx=20, pady=(6, 8))
+        ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
+        ctk.CTkButton(
+            secondary, text="📋  Loglar", height=44, command=self._open_logs,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color="#475569", hover_color="#334155",
+        ).grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
         # --- Footer ---
         ctk.CTkLabel(
@@ -241,6 +298,65 @@ class AssistantGUI:
             card, text=desc, font=ctk.CTkFont(size=12), text_color="#9ca3af",
             anchor="w", justify="left", wraplength=420,
         ).grid(row=1, column=1, sticky="w", pady=(0, 12), padx=(0, 14))
+
+    # ------------------------------ log viewer ----------------------------
+
+    def _open_logs(self) -> None:
+        if self._logs_win is not None and self._logs_win.winfo_exists():
+            self._logs_win.focus()
+            self._logs_win.lift()
+            return
+        win = ctk.CTkToplevel(self.root)
+        self._logs_win = win
+        win.title("Loglar / Olaylar")
+        win.geometry("700x520")
+        win.minsize(540, 360)
+        win.transient(self.root)
+        win.grid_columnconfigure(0, weight=1)
+        win.grid_rowconfigure(1, weight=1)
+
+        banner = ctk.CTkFrame(win, corner_radius=0, fg_color="#334155", height=64)
+        banner.grid(row=0, column=0, sticky="ew")
+        banner.grid_propagate(False)
+        ctk.CTkLabel(
+            banner, text="📋  Loglar / Olaylar",
+            font=ctk.CTkFont(size=18, weight="bold"), text_color="white",
+        ).pack(side="left", padx=24, pady=16)
+        ctk.CTkLabel(
+            banner, text="canlı — sürüklerken TRACKING / match satırlarına bakın",
+            font=ctk.CTkFont(size=12), text_color="#cbd5e1",
+        ).pack(side="left", pady=16)
+
+        box = ctk.CTkTextbox(
+            win, font=ctk.CTkFont(family="Consolas", size=12), wrap="none",
+        )
+        box.grid(row=1, column=0, sticky="nsew", padx=12, pady=12)
+        box.configure(state="disabled")
+        self._logs_box = box
+
+        ctk.CTkButton(
+            win, text="Kapat", height=40, command=win.destroy,
+            font=ctk.CTkFont(size=14, weight="bold"),
+            fg_color=_ACCENT, hover_color=_ACCENT_HOVER,
+        ).grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 14))
+
+        self._refresh_logs()
+        win.after(150, win.lift)
+
+    def _refresh_logs(self) -> None:
+        win = self._logs_win
+        box = self._logs_box
+        if win is None or not win.winfo_exists() or box is None:
+            return
+        feed = _read_log_feed()
+        at_bottom = box.yview()[1] > 0.999
+        box.configure(state="normal")
+        box.delete("1.0", "end")
+        box.insert("1.0", feed)
+        box.configure(state="disabled")
+        if at_bottom:
+            box.see("end")
+        win.after(800, self._refresh_logs)
 
     # ------------------------------ actions -------------------------------
 
