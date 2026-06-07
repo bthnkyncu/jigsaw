@@ -57,10 +57,20 @@ class Settings:
     # before capturing, so the board is fully settled.
     init_view_settle_delay_s: float = 1.0
 
-    # --- Grid detection ---
-    # Gamyun's "250 parça" mode actually ships boards from ~230 to ~260 pieces
-    # depending on the source image aspect, so the band is wider than the
-    # brief's 240–260.
+    # --- Grid detection (parametric — NO hardcoded piece count) ---
+    # The grid (rows × cols) is read from the cut-line periodicity, so it is
+    # independent of zoom and piece count: any of 30 / 50 / 100 / 150 / 250 …
+    # works. The bounds below are absolute cell sizes in *board pixels* — a
+    # jigsaw cell is never smaller/larger than this regardless of how many
+    # pieces. Cells are ~square, so the row and col periods are chosen to keep
+    # cell_w/cell_h within ``grid_cell_aspect_max``; that squareness constraint
+    # defeats the autocorrelation half/double-period harmonic that otherwise
+    # doubled the row count on low-piece boards (the squashed overlay box).
+    grid_min_cell_px: float = 24.0
+    grid_max_cell_px: float = 230.0
+    grid_cell_aspect_max: float = 1.5
+    grid_max_total_pieces: int = 520
+    # Retained for config/back-compat; no longer gates grid detection.
     expected_piece_count_min: int = 200
     expected_piece_count_max: int = 320
     grid_peak_prominence: float = 0.15

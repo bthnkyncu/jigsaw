@@ -6,7 +6,6 @@ from pathlib import Path
 
 import cv2
 
-from puzzle_assistant.calibration.grid_detector import estimate_grid_from_aspect
 from puzzle_assistant.config import load_settings
 from puzzle_assistant.piece.group_detection import classify
 from puzzle_assistant.piece.pickup import pickup_from_window
@@ -23,8 +22,7 @@ def _window_crop(fixtures_dir: Path, name: str) -> "cv2.typing.MatLike":
 def test_extract_single_piece_from_board_center(fixtures_dir: Path) -> None:
     settings = load_settings(None)
     img = _window_crop(fixtures_dir, "dragging_single_1")
-    grid = estimate_grid_from_aspect(744, 558, settings)
-    assert grid is not None
+    grid = GridSpec(cols=17, rows=14, cell_w=744 / 17, cell_h=558 / 14)
 
     # Cursor right on top of the piece sitting in board center.
     result = pickup_from_window(img, (905, 390), grid, settings)
@@ -67,8 +65,7 @@ def test_extract_returns_none_on_empty_desk(fixtures_dir: Path) -> None:
 
     settings = load_settings(None)
     img = _window_crop(fixtures_dir, "mid_game_1")
-    grid = estimate_grid_from_aspect(744, 558, settings)
-    assert grid is not None
+    grid = GridSpec(cols=17, rows=14, cell_w=744 / 17, cell_h=558 / 14)
     # Click smack in the middle of the empty board interior.
     result = pickup_from_window(img, (900, 400), grid, settings)
     # Either no piece, or a tiny noise blob.

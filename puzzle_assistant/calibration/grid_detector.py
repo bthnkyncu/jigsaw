@@ -1,27 +1,30 @@
 """Estimate the puzzle grid (cols × rows) from the init-view board crop.
 
-The implementation here is adapted from the Puzzle_Game prototype because
-its autocorrelation-based period search held up well on real Gamyun init
-views, while a peak-count or frequency-bucket approach is sensitive to
-content-driven noise.
+Parametric — there is NO hardcoded piece count and no fixed count band. The
+grid is read purely from the cut-line periodicity, so any piece count works
+(30, 50, 100, 150, 250 …) and any aspect (landscape or portrait), regardless
+of how far the player zoomed before starting.
 
 Algorithm:
 
-1. Take the board crop, run Canny so the puzzle cut-lines become a clean
-   high-contrast signal.
-2. Project edges onto each axis. A grid with cell period ``p`` produces an
-   axis profile whose autocorrelation peaks at lag ``p``.
-3. Refine each grid line by snapping to the local maximum within ``±p/6``.
-4. ``cols = len(col_lines)``, ``rows = len(row_lines)``.
-
-Fallback (init view missed): aspect-ratio search using the reference panel
-shape — implemented as ``estimate_grid_from_aspect``.
+1. Canny the board crop so the cut-lines become a clean high-contrast signal.
+2. Project edges onto each axis and take the FFT autocorrelation. A grid with
+   cell period ``p`` peaks at lag ``p`` (and weaker peaks at its multiples).
+   Collect the strongest candidate periods per axis within an *absolute*
+   cell-size range (in board pixels) — not a piece-count-derived range.
+3. Choose the (row_period, col_period) pair that (a) keeps every cell within
+   the pixel range, (b) keeps cells ~square (``cell_w/cell_h`` within
+   ``grid_cell_aspect_max``), and (c) has the strongest combined
+   autocorrelation. The squareness constraint is the key robustness lever: a
+   half/double-period harmonic makes one axis ~2× the other, so it is rejected
+   — this is what previously doubled the row count on low-piece boards and
+   produced a squashed overlay box.
+4. ``rows = round(h / row_period)``, ``cols = round(w / col_period)``.
 """
 
 from __future__ import annotations
 
 import logging
-import math
 
 import cv2
 import numpy as np
@@ -30,11 +33,10 @@ from puzzle_assistant.config import Settings
 from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import GridSpec
 
-# Minimum cell size in pixels. A 250-piece board on a ~700px tall window
-# yields ~40px cells; using 25 keeps a margin without inviting sub-cell
-# harmonics that produce 40x grids.
-_MIN_PERIOD_PX = 25
-_MAX_PERIOD_PX = 120
+# Autocorrelation peak must reach this normalised strength to count.
+_ACF_MIN_STRENGTH = 0.08
+# Candidate periods kept per axis (fundamental + a few harmonics/alternatives).
+_TOP_K = 6
 
 
 def detect_grid_from_init_view(board_bgr: np.ndarray, settings: Settings) -> GridSpec | None:
@@ -47,62 +49,56 @@ def detect_grid_from_init_view(board_bgr: np.ndarray, settings: Settings) -> Gri
     gray = cv2.cvtColor(board_bgr, cv2.COLOR_BGR2GRAY)
     edges = cv2.Canny(gray, 25, 75)
 
-    horiz_profile = edges.sum(axis=1).astype(np.float32)
-    vert_profile = edges.sum(axis=0).astype(np.float32)
+    horiz_profile = edges.sum(axis=1).astype(np.float32)  # per-row → rows axis
+    vert_profile = edges.sum(axis=0).astype(np.float32)   # per-col → cols axis
 
-    # Bound the period search by the configured piece-count band. A square
-    # board with N pieces has roughly ``sqrt(N)`` cells per axis, so cell size
-    # falls in ``[axis_size / sqrt(max_pieces), axis_size / sqrt(min_pieces)]``.
-    # This rules out content-harmonics — e.g. a puzzle photo with horizontal
-    # bands that make every ~25px look periodic when the real grid sits at 47px.
-    min_pieces = settings.expected_piece_count_min
-    max_pieces = settings.expected_piece_count_max
-    # Per-axis upper bound on cell count: sqrt(max_pieces * aspect_factor).
-    # Allow a generous 1.6x factor so a thin board (cols >> rows) still fits.
-    aspect_slack = 1.6
-    max_cells_per_axis = math.sqrt(max_pieces * aspect_slack)
-    min_cells_per_axis = math.sqrt(min_pieces / aspect_slack)
-    row_min_p = max(20, int(h / max_cells_per_axis))
-    row_max_p = min(200, int(h / max(1, min_cells_per_axis)))
-    col_min_p = max(20, int(w / max_cells_per_axis))
-    col_max_p = min(200, int(w / max(1, min_cells_per_axis)))
-
-    row_period = _autocorrelation_period(horiz_profile, row_min_p, row_max_p)
-    col_period = _autocorrelation_period(vert_profile, col_min_p, col_max_p)
-
-    if row_period is None or col_period is None:
+    min_p = settings.grid_min_cell_px
+    max_p = settings.grid_max_cell_px
+    row_cands = _autocorrelation_candidates(horiz_profile, min_p, max_p)
+    col_cands = _autocorrelation_candidates(vert_profile, min_p, max_p)
+    if not row_cands or not col_cands:
         plog.event("grid_detect_no_period", level=logging.WARNING)
         return None
 
-    # Cell count is derived from the period directly. ``_grid_lines`` is
-    # used for diagnostics / future cell-snapping work but can drop the
-    # board-edge line depending on phase, so counting it gives unstable
-    # results (rows might come out one short).
-    rows = max(1, round(h / row_period))
-    cols = max(1, round(w / col_period))
-    total = rows * cols
-    if not (settings.expected_piece_count_min <= total <= settings.expected_piece_count_max):
+    aspect_max = settings.grid_cell_aspect_max
+    best: tuple[float, int, int, float, float, float] | None = None
+    for row_p, row_str in row_cands:
+        rows = max(1, round(h / row_p))
+        cell_h = h / rows
+        for col_p, col_str in col_cands:
+            cols = max(1, round(w / col_p))
+            cell_w = w / cols
+            if not (min_p <= cell_w <= max_p and min_p <= cell_h <= max_p):
+                continue
+            ratio = max(cell_w / cell_h, cell_h / cell_w)
+            if ratio > aspect_max:  # not square enough → a harmonic
+                continue
+            total = rows * cols
+            if total < 9 or total > settings.grid_max_total_pieces:
+                continue
+            strength = row_str + col_str
+            if best is None or strength > best[0]:
+                best = (strength, rows, cols, row_p, col_p, cell_w / cell_h)
+
+    if best is None:
         plog.event(
-            "grid_count_out_of_range",
+            "grid_detect_no_square_pair",
             level=logging.WARNING,
-            rows=rows,
-            cols=cols,
-            total=total,
-            min=settings.expected_piece_count_min,
-            max=settings.expected_piece_count_max,
-            col_period=round(col_period, 2),
-            row_period=round(row_period, 2),
+            row_cands=[round(p, 1) for p, _ in row_cands],
+            col_cands=[round(p, 1) for p, _ in col_cands],
         )
         return None
 
+    _, rows, cols, row_p, col_p, aspect = best
     spec = GridSpec(cols=cols, rows=rows, cell_w=w / cols, cell_h=h / rows)
     plog.event(
         "grid_detect_ok",
         rows=rows,
         cols=cols,
-        total=total,
-        col_period=round(col_period, 2),
-        row_period=round(row_period, 2),
+        total=rows * cols,
+        col_period=round(col_p, 2),
+        row_period=round(row_p, 2),
+        cell_aspect=round(aspect, 2),
     )
     return spec
 
@@ -112,97 +108,52 @@ def estimate_grid_from_aspect(
     board_h: int,
     settings: Settings,
 ) -> GridSpec | None:
-    """Pick the (cols, rows) pair closest to the board's aspect ratio
-    inside ``[expected_piece_count_min, expected_piece_count_max]``.
+    """Deprecated fallback — intentionally returns ``None``.
 
-    Used when the init-view path failed and we only have the reference panel.
+    Aspect ratio alone cannot determine the piece count (6×8, 9×12 and 12×16
+    are all equally square), so any answer here would be a hardcoded-count
+    guess — exactly what this parametric design avoids. The periodicity path
+    (:func:`detect_grid_from_init_view`) is authoritative; if it can't read the
+    grid we wait for a cleaner init view rather than place a wrong grid.
     """
-
-    if board_w <= 0 or board_h <= 0:
-        return None
-    target_aspect = board_w / board_h
-
-    best: tuple[int, int] | None = None
-    best_score = float("inf")
-    for total in range(settings.expected_piece_count_min, settings.expected_piece_count_max + 1):
-        for cols in range(8, total // 4 + 1):
-            if total % cols != 0:
-                continue
-            rows = total // cols
-            cell_aspect = (board_w / cols) / (board_h / rows)
-            score = abs(cell_aspect - 1.0) + 0.1 * abs((cols / rows) - target_aspect)
-            if score < best_score:
-                best_score = score
-                best = (cols, rows)
-
-    if best is None:
-        return None
-    cols, rows = best
-    spec = GridSpec(cols=cols, rows=rows, cell_w=board_w / cols, cell_h=board_h / rows)
-    plog.event("grid_estimate_ok", rows=rows, cols=cols, total=cols * rows)
-    return spec
+    plog.event("grid_aspect_fallback_disabled", level=logging.INFO)
+    return None
 
 
-def _autocorrelation_period(
-    profile: np.ndarray,
-    min_period: int = _MIN_PERIOD_PX,
-    max_period: int = _MAX_PERIOD_PX,
-) -> float | None:
-    """Find the dominant lag of ``profile`` using FFT-based autocorrelation.
+def _autocorrelation_candidates(
+    profile: np.ndarray, min_period: float, max_period: float
+) -> list[tuple[float, float]]:
+    """Strongest autocorrelation peaks of ``profile`` within the period range.
 
-    Returns the lag (in pixels) where the autocorrelation peaks within
-    ``[min_period, max_period]``, or ``None`` if the peak is too weak.
+    Returns ``[(period_px, strength), ...]`` sorted by strength (descending),
+    using FFT-based autocorrelation. Multiple candidates are returned so the
+    caller can pick the fundamental (vs a harmonic) via the squareness rule.
     """
 
     n = profile.size
-    if n < min_period * 2:
-        return None
+    lo = round(min_period)
+    hi = round(max_period)
+    if lo < 2 or n < lo * 2:
+        return []
 
     centered = profile - profile.mean()
-    n_pad = 2 * n
-    fft_vals = np.fft.rfft(centered, n=n_pad)
+    fft_vals = np.fft.rfft(centered, n=2 * n)
     acf = np.fft.irfft(fft_vals * np.conj(fft_vals))[:n].real
     if acf[0] < 1e-9:
-        return None
+        return []
     acf = acf / acf[0]
 
-    search_end = min(max_period + 1, n // 2)
-    if search_end <= min_period:
-        return None
+    hi = min(hi, n // 2 - 1)
+    if hi <= lo:
+        return []
 
-    best_lag = int(np.argmax(acf[min_period:search_end])) + min_period
-    if acf[best_lag] < 0.08:
-        return None
-    return float(best_lag)
+    cands: list[tuple[float, float]] = []
+    for lag in range(lo, hi + 1):
+        v = float(acf[lag])
+        if v < _ACF_MIN_STRENGTH:
+            continue
+        if acf[lag] >= acf[lag - 1] and acf[lag] >= acf[lag + 1]:  # local max
+            cands.append((float(lag), v))
 
-
-def _grid_lines(profile: np.ndarray, period: float, size: int) -> list[int]:
-    """Place grid lines at the optimal phase offset for ``period``, then
-    snap each one to the nearest local maximum within ``±period/6``.
-    """
-
-    step = max(1, round(period))
-    half = max(3, step // 6)
-
-    best_offset = 0
-    best_score = -1.0
-    for offset in range(step):
-        score = 0.0
-        pos = offset
-        while pos < size:
-            score += float(profile[pos])
-            pos += step
-        if score > best_score:
-            best_score = score
-            best_offset = offset
-
-    lines: list[int] = []
-    pos = best_offset
-    while pos < size:
-        lo = max(0, pos - half)
-        hi = min(size, pos + half + 1)
-        if hi - lo >= 2:
-            peak = lo + int(np.argmax(profile[lo:hi]))
-            lines.append(peak)
-        pos += step
-    return lines
+    cands.sort(key=lambda c: c[1], reverse=True)
+    return cands[:_TOP_K]

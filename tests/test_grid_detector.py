@@ -46,8 +46,8 @@ def test_grid_from_init_view(
     assert grid.cols == expected_cols, f"{name}: cols={grid.cols}"
 
 
-def test_aspect_fallback_returns_plausible_grid() -> None:
+def test_aspect_fallback_disabled() -> None:
+    # Aspect alone can't determine the piece count, so the parametric design
+    # no longer guesses a grid from it — the periodicity path is authoritative.
     settings = load_settings(None)
-    grid = estimate_grid_from_aspect(744, 558, settings)
-    assert grid is not None
-    assert settings.expected_piece_count_min <= grid.total_pieces <= settings.expected_piece_count_max
+    assert estimate_grid_from_aspect(744, 558, settings) is None
