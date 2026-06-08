@@ -62,6 +62,10 @@ class MainLoop:
         self._board_state: BoardState | None = None
         self._last_board_state_ts = 0.0
         self._last_board_bbox_check_ts = 0.0
+        # Self-supervised eval: prediction captured at pickup, resolved against
+        # the actual landing cell after the drop settles.
+        self._eval_pending: dict[str, Any] | None = None
+        self._eval_up_ts = 0.0
 
     def run(self, max_iterations: int | None = None) -> None:
         """Drive the loop. ``max_iterations`` is used by tests; ``None`` = forever."""
@@ -139,6 +143,7 @@ class MainLoop:
                 if self._ctx.state == sm.State.READY:
                     self._monitor_board_bbox(frame)
                     self._refresh_board_state(frame)
+                    self._eval_placement(frame)
                 self._handle_mouse_events(frame)
             self._prev_state = self._ctx.state
         except Exception as exc:
@@ -310,6 +315,44 @@ class MainLoop:
         ]
         self._board_state.update(crop, self._settings)
 
+    def _eval_placement(self, frame: Any) -> None:
+        """After a drop settles, find the cell the piece actually landed in
+        (board-state diff) and log predicted-vs-actual. Self-supervised ground
+        truth: no manual labelling, zero precision risk (logging only)."""
+        if self._eval_pending is None or self._eval_up_ts == 0.0:
+            return
+        if time.monotonic() - self._eval_up_ts < self._settings.eval_settle_s:
+            return
+        pend = self._eval_pending
+        self._eval_pending = None
+        self._eval_up_ts = 0.0
+
+        grid = self._ctx.artifacts.grid
+        board_bbox = self._ctx.artifacts.board_bbox
+        if self._board_state is None or grid is None or board_bbox is None:
+            return
+        crop = frame[
+            board_bbox.y : board_bbox.y + board_bbox.h,
+            board_bbox.x : board_bbox.x + board_bbox.w,
+        ]
+        self._board_state.update(crop, self._settings)  # fresh post-drop state
+        newly = self._board_state.filled_cells() - pend["filled_before"]
+        if len(newly) != 1:
+            # 0 = piece returned / not snapped; >1 = scatter noise. Can't label.
+            plog.event("eval_skip", reason="newly_filled", n=len(newly), pred=pend["pred"])
+            return
+        actual = list(next(iter(newly)))
+        plog.event(
+            "eval",
+            predicted=pend["pred"],
+            actual=actual,
+            correct=pend["pred"] == actual,
+            combined=pend["combined"],
+            margin=pend["margin"],
+            texture=pend["texture"],
+            rejected=pend["rejected"],
+        )
+
     def _handle_mouse_events(self, frame: Any) -> None:
         window_bbox = self._ctx.artifacts.window_bbox
         if window_bbox is None or self._ctx.artifacts.target_map is None \
@@ -327,6 +370,8 @@ class MainLoop:
             elif evt.type == "up":
                 sm.on_mouse_up(self._ctx)
                 self._overlay.hide()
+                if self._eval_pending is not None:
+                    self._eval_up_ts = time.monotonic()
 
     def _try_pickup_and_match(self, frame: Any, sx: int, sy: int) -> None:
         window_bbox = self._ctx.artifacts.window_bbox
@@ -351,6 +396,18 @@ class MainLoop:
         match = match_piece(
             result.piece.piece_full, tmap, self._settings, self._board_state
         )
+        # Capture the prediction for self-supervised eval (resolved on drop).
+        self._eval_pending = {
+            "pred": [match.cell.row, match.cell.col] if match.cell else None,
+            "combined": round(match.combined, 3),
+            "margin": round(match.margin, 3),
+            "texture": round(match.texture, 1),
+            "rejected": match.rejected_reason,
+            "filled_before": (
+                self._board_state.filled_cells() if self._board_state else frozenset()
+            ),
+        }
+        self._eval_up_ts = 0.0
         if match.cell is None:
             return
         target_local = cell_bbox(board_bbox, grid, match.cell)

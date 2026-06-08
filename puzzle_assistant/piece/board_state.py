@@ -42,6 +42,16 @@ class BoardState:
     def filled_count(self) -> int:
         return sum(v for row in self._filled for v in row)
 
+    def filled_cells(self) -> frozenset[tuple[int, int]]:
+        """Set of ``(row, col)`` currently marked filled — for before/after
+        diffing to find where a dropped piece landed (self-supervised eval)."""
+        return frozenset(
+            (r, c)
+            for r in range(self._grid.rows)
+            for c in range(self._grid.cols)
+            if self._filled[r][c]
+        )
+
     def total_cells(self) -> int:
         return self._grid.rows * self._grid.cols
 

@@ -100,6 +100,11 @@ class Settings:
     # (wall-clock s) so the empty-cell filter has a current view without
     # re-scanning every frame.
     board_state_refresh_s: float = 0.5
+    # Self-supervised accuracy capture: after a piece is dropped, wait this long
+    # for the game to snap/render, then diff the board to find where it actually
+    # landed and log an `eval` event (predicted vs actual). Ground truth without
+    # manual labelling — used to measure precision/recall and validate changes.
+    eval_settle_s: float = 1.0
     # Board-bbox drift check (detect window move/zoom) runs at most this often.
     # detect_board on a full 2560×1440 capture is expensive; running it every
     # tick (20 FPS) floods board_detect_no_valid_contour and pegs a CPU core,
