@@ -25,21 +25,24 @@ from puzzle_assistant.calibration.board_detector import detect_board
 from puzzle_assistant.calibration.grid_detector import detect_grid_from_init_view
 from puzzle_assistant.config import load_settings
 
-# (filename, expected_rows, expected_cols) — ground truth from the customer.
-CASES: list[tuple[str, int, int]] = [
-    ("init_150.png", 10, 15),
-    ("init_100.png", 8, 12),
-    ("init_70.png", 7, 10),
-    ("init_50.png", 6, 8),
-    ("init_30.png", 5, 6),
+# (filename, nominal_count_the_user_types, expected_rows, expected_cols).
+# The nominal count is what the game shows / the user enters before "Başlat";
+# the actual total may drift a few pieces (e.g. "100" → 8×12 = 96).
+CASES: list[tuple[str, int, int, int]] = [
+    ("init_150.png", 150, 10, 15),
+    ("init_100.png", 100, 8, 12),
+    ("init_70.png", 70, 7, 10),
+    ("init_50.png", 50, 6, 8),
+    ("init_30.png", 30, 5, 6),
 ]
 
 
 def main(fixtures_dir: str) -> int:
-    settings = load_settings(None)
     base = Path(fixtures_dir)
     any_run = False
-    for name, exp_rows, exp_cols in CASES:
+    for name, nominal, exp_rows, exp_cols in CASES:
+        settings = load_settings(None)
+        settings.target_piece_count = nominal  # simulate the user's entry
         path = base / name
         if not path.exists():
             print(f"{name:14s} : (yok — atlandı)")

@@ -46,6 +46,35 @@ def test_grid_from_init_view(
     assert grid.cols == expected_cols, f"{name}: cols={grid.cols}"
 
 
+@pytest.mark.parametrize(
+    "name,nominal_count,expected_rows,expected_cols",
+    [
+        ("init_150", 150, 10, 15),
+        ("init_100", 100, 8, 12),
+        ("init_70", 70, 7, 10),
+        ("init_50", 50, 6, 8),
+        ("init_30", 30, 5, 6),
+    ],
+)
+def test_count_anchored_grid(
+    fixtures_dir: Path,
+    name: str,
+    nominal_count: int,
+    expected_rows: int,
+    expected_cols: int,
+) -> None:
+    """With the user-entered piece count as an anchor, the exact rows×cols is
+    recovered for any count (octave errors eliminated)."""
+    settings = load_settings(None)
+    settings.target_piece_count = nominal_count
+    crop = _board_crop(fixtures_dir, name)
+    grid = detect_grid_from_init_view(crop, settings)
+    assert grid is not None, f"grid not detected on {name}"
+    assert (grid.rows, grid.cols) == (expected_rows, expected_cols), (
+        f"{name}: got {grid.rows}x{grid.cols}"
+    )
+
+
 def test_aspect_fallback_disabled() -> None:
     # Aspect alone can't determine the piece count, so the parametric design
     # no longer guesses a grid from it — the periodicity path is authoritative.

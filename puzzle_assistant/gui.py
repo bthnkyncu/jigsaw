@@ -145,8 +145,8 @@ class AssistantGUI:
 
         self.root = ctk.CTk()
         self.root.title("Yapboz Asistanı")
-        self.root.geometry("500x540")
-        self.root.minsize(460, 500)
+        self.root.geometry("500x600")
+        self.root.minsize(460, 560)
 
         # One Tk root for the whole process: the overlay is a Toplevel of this
         # root driven on the main thread (see GuiOverlay) — never a second
@@ -192,9 +192,23 @@ class AssistantGUI:
         )
         self._status_label.grid(row=1, column=1, sticky="w", pady=(0, 14))
 
+        # --- Piece-count input (enter BEFORE Başlat) ---
+        count_card = ctk.CTkFrame(root, corner_radius=14)
+        count_card.grid(row=2, column=0, sticky="ew", padx=20, pady=8)
+        count_card.grid_columnconfigure(1, weight=1)
+        ctk.CTkLabel(
+            count_card, text="Parça sayısı",
+            font=ctk.CTkFont(size=13, weight="bold"),
+        ).grid(row=0, column=0, sticky="w", padx=(16, 8), pady=14)
+        self._count_entry = ctk.CTkEntry(
+            count_card, placeholder_text="örn. 150  (oyunda seçtiğiniz sayı)",
+            font=ctk.CTkFont(size=14), height=36,
+        )
+        self._count_entry.grid(row=0, column=1, sticky="ew", padx=(0, 16), pady=14)
+
         # --- Start / Stop ---
         buttons = ctk.CTkFrame(root, fg_color="transparent")
-        buttons.grid(row=2, column=0, sticky="ew", padx=20, pady=6)
+        buttons.grid(row=3, column=0, sticky="ew", padx=20, pady=6)
         buttons.grid_columnconfigure((0, 1), weight=1)
         self._start_btn = ctk.CTkButton(
             buttons, text="BAŞLAT", height=46, command=self._start,
@@ -211,7 +225,7 @@ class AssistantGUI:
 
         # --- Secondary buttons: help + logs ---
         secondary = ctk.CTkFrame(root, fg_color="transparent")
-        secondary.grid(row=3, column=0, sticky="ew", padx=20, pady=(6, 8))
+        secondary.grid(row=4, column=0, sticky="ew", padx=20, pady=(6, 8))
         secondary.grid_columnconfigure((0, 1), weight=1)
         ctk.CTkButton(
             secondary, text="📖  Nasıl Oynanır?", height=44, command=self._open_help,
@@ -229,7 +243,7 @@ class AssistantGUI:
             root,
             text="Fareyi kullanmaz · ekranı okur ve yeşil çerçeve çizer · %100 ölçek gerekir",
             font=ctk.CTkFont(size=11), text_color="#6b7280", wraplength=440,
-        ).grid(row=4, column=0, pady=(4, 14))
+        ).grid(row=5, column=0, pady=(4, 14))
 
     # ------------------------------ help window ---------------------------
 
@@ -368,6 +382,14 @@ class AssistantGUI:
     def _start(self) -> None:
         if self._thread is not None and self._thread.is_alive():
             return
+        # Read the piece count entered before Başlat; anchors grid detection.
+        raw = self._count_entry.get().strip()
+        try:
+            self._settings.target_piece_count = int(raw) if raw else None
+        except ValueError:
+            self._settings.target_piece_count = None
+        self._count_entry.configure(state="disabled")
+
         capture = make_window_capture(self._platform)
         hook = make_mouse_hook(self._platform)
         notifier = make_notifier(self._platform)
@@ -386,6 +408,7 @@ class AssistantGUI:
             plog.event("gui_stop")
         self._start_btn.configure(state="normal")
         self._stop_btn.configure(state="disabled")
+        self._count_entry.configure(state="normal")
 
     def _set_status(self, text: str, colour: str) -> None:
         self._status_label.configure(text=text)

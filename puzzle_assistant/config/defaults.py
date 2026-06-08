@@ -70,6 +70,16 @@ class Settings:
     grid_max_cell_px: float = 230.0
     grid_cell_aspect_max: float = 1.5
     grid_max_total_pieces: int = 520
+    # Optional anchor: the piece count the user picked in the game (entered in
+    # the GUI before "Başlat"). When set, grid detection only considers
+    # rows×cols whose total is near this value, which eliminates the octave
+    # errors (half/double/third periods) that pure pixel autodetection hits on
+    # content-heavy images — the count moves the wrong total ~4× away. None ⇒
+    # fall back to unanchored periodicity detection.
+    target_piece_count: int | None = None
+    # Tolerance band around target_piece_count (the game's actual count drifts a
+    # few pieces from the nominal, and factorisations are sparse).
+    target_piece_count_tolerance: float = 0.18
     # Retained for config/back-compat; no longer gates grid detection.
     expected_piece_count_min: int = 200
     expected_piece_count_max: int = 320
