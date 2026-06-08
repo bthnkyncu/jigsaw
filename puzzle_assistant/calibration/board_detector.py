@@ -86,7 +86,11 @@ def detect_board(frame_bgr: np.ndarray, settings: Settings) -> Bbox | None:
     if best is None:
         # Diagnostics: the largest contour's size tells us why nothing passed
         # (board too short → height gate; tiny → no puzzle / wrong window; ~full
-        # → desk mask failed). work_h/w let us see if the captured frame is small.
+        # → desk mask matched nothing). The captured frame's mean colour + std
+        # distinguish a *black* capture (mean≈0, std≈0 → mss returning nothing,
+        # e.g. a Wayland session) from real-but-wrong-hue content (HSV mismatch).
+        mean_bgr = work.reshape(-1, 3).mean(axis=0)
+        desk_frac = float(desk_mask.mean()) / 255.0
         plog.event(
             "board_detect_no_valid_contour", level=logging.WARNING,
             n_contours=len(contours),
@@ -94,13 +98,39 @@ def detect_board(frame_bgr: np.ndarray, settings: Settings) -> Bbox | None:
             biggest_w=biggest[0], biggest_h=biggest[1],
             biggest_area_ratio=round(biggest[2], 3),
             min_board_h=min_board_h,
+            mean_b=round(float(mean_bgr[0]), 1),
+            mean_g=round(float(mean_bgr[1]), 1),
+            mean_r=round(float(mean_bgr[2]), 1),
+            frame_std=round(float(work.std()), 1),
+            desk_frac=round(desk_frac, 3),
         )
+        _dump_debug_frame(work)
         return None
 
     x, y, cw, ch = best
     bbox = Bbox(x=x + work_x0, y=y + work_y0, w=cw, h=ch)
     plog.event("board_detect_ok", bbox=[bbox.x, bbox.y, bbox.w, bbox.h])
     return bbox
+
+
+_DEBUG_FRAME_DUMPED = False
+
+
+def _dump_debug_frame(work_bgr: np.ndarray) -> None:
+    """Write the captured board region to logs/board_debug.png ONCE, so a failed
+    detection can be inspected (black ⇒ capture broken; a real game frame ⇒
+    desk-hue mismatch)."""
+    global _DEBUG_FRAME_DUMPED
+    if _DEBUG_FRAME_DUMPED:
+        return
+    _DEBUG_FRAME_DUMPED = True
+    try:
+        from pathlib import Path
+        Path("logs").mkdir(parents=True, exist_ok=True)
+        cv2.imwrite("logs/board_debug.png", work_bgr)
+        plog.event("board_debug_frame_saved", path="logs/board_debug.png")
+    except (OSError, cv2.error) as exc:  # pragma: no cover
+        plog.event("board_debug_frame_failed", level=logging.WARNING, error=str(exc))
 
 
 def _desk_background_mask(work_bgr: np.ndarray, settings: Settings) -> np.ndarray:
