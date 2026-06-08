@@ -26,8 +26,12 @@ TOP_BAR_HEIGHT_RATIO = 0.04
 
 MIN_BOARD_AREA_RATIO = 0.05
 MAX_BOARD_AREA_RATIO = 0.45
-# A puzzle board must be at least this tall in pixels to exclude UI strips.
-MIN_BOARD_HEIGHT_PX = 250
+# A puzzle board must be at least this fraction of the work-region height
+# (relative, not absolute px — the window may not be maximised / the screen may
+# be smaller than the dev fixtures, where an absolute 250 px wrongly rejected a
+# valid but smaller board). Floor keeps absurdly thin UI strips out.
+MIN_BOARD_HEIGHT_RATIO = 0.30
+MIN_BOARD_HEIGHT_FLOOR_PX = 120
 
 
 def detect_board(frame_bgr: np.ndarray, settings: Settings) -> Bbox | None:
@@ -52,16 +56,21 @@ def detect_board(frame_bgr: np.ndarray, settings: Settings) -> Bbox | None:
         plog.event("board_detect_no_contour", level=logging.WARNING)
         return None
 
+    min_board_h = max(MIN_BOARD_HEIGHT_FLOOR_PX, int(work.shape[0] * MIN_BOARD_HEIGHT_RATIO))
+
     best: tuple[int, int, int, int] | None = None
     best_score = 0.0
+    biggest: tuple[int, int, float] = (0, 0, 0.0)  # (w, h, area_ratio) — diagnostics
     for c in contours:
         x, y, cw, ch = cv2.boundingRect(c)
         area = cw * ch
+        if area > biggest[2] * work_area:
+            biggest = (cw, ch, area / work_area)
         if area < work_area * MIN_BOARD_AREA_RATIO:
             continue
         if area > work_area * MAX_BOARD_AREA_RATIO:
             continue
-        if ch < MIN_BOARD_HEIGHT_PX:
+        if ch < min_board_h:
             continue
         aspect = cw / max(ch, 1)
         if aspect < 0.7 or aspect > 3.0:
@@ -75,7 +84,17 @@ def detect_board(frame_bgr: np.ndarray, settings: Settings) -> Bbox | None:
             best_score = score
 
     if best is None:
-        plog.event("board_detect_no_valid_contour", level=logging.WARNING)
+        # Diagnostics: the largest contour's size tells us why nothing passed
+        # (board too short → height gate; tiny → no puzzle / wrong window; ~full
+        # → desk mask failed). work_h/w let us see if the captured frame is small.
+        plog.event(
+            "board_detect_no_valid_contour", level=logging.WARNING,
+            n_contours=len(contours),
+            work_w=work.shape[1], work_h=work.shape[0],
+            biggest_w=biggest[0], biggest_h=biggest[1],
+            biggest_area_ratio=round(biggest[2], 3),
+            min_board_h=min_board_h,
+        )
         return None
 
     x, y, cw, ch = best
