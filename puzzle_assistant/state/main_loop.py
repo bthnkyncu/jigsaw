@@ -337,21 +337,47 @@ class MainLoop:
         ]
         self._board_state.update(crop, self._settings)  # fresh post-drop state
         newly = self._board_state.filled_cells() - pend["filled_before"]
-        if len(newly) != 1:
-            # 0 = piece returned / not snapped; >1 = scatter noise. Can't label.
+        if len(newly) == 1:
+            actual = list(next(iter(newly)))
+            source = "diff"
+        elif pend["drop"] is not None:
+            # board-state didn't cleanly diff (0 / >1 new cells); fall back to
+            # where the user released the piece (they place it where it belongs).
+            actual = pend["drop"]
+            source = "drop"
+        else:
             plog.event("eval_skip", reason="newly_filled", n=len(newly), pred=pend["pred"])
             return
-        actual = list(next(iter(newly)))
+        top = pend["top"]
         plog.event(
             "eval",
             predicted=pend["pred"],
+            top=top,
             actual=actual,
             correct=pend["pred"] == actual,
+            recoverable=pend["pred"] is None and top == actual,  # reject that WOULD be right
+            source=source,
             combined=pend["combined"],
             margin=pend["margin"],
             texture=pend["texture"],
             rejected=pend["rejected"],
         )
+
+    def _drop_cell(self, sx: int, sy: int) -> list[int] | None:
+        """The grid cell under the screen point ``(sx, sy)`` where a piece was
+        released, or ``None`` if outside the board. Fallback ground truth."""
+        wb = self._ctx.artifacts.window_bbox
+        bb = self._ctx.artifacts.board_bbox
+        grid = self._ctx.artifacts.grid
+        if wb is None or bb is None or grid is None:
+            return None
+        bx = (sx - wb.x) - bb.x
+        by = (sy - wb.y) - bb.y
+        if not (0 <= bx < bb.w and 0 <= by < bb.h):
+            return None
+        col = int(min(grid.cols - 1, max(0, bx // grid.cell_w)))
+        row = int(min(grid.rows - 1, max(0, by // grid.cell_h)))
+        return [row, col]
 
     def _handle_mouse_events(self, frame: Any) -> None:
         window_bbox = self._ctx.artifacts.window_bbox
@@ -372,6 +398,7 @@ class MainLoop:
                 self._overlay.hide()
                 if self._eval_pending is not None:
                     self._eval_up_ts = time.monotonic()
+                    self._eval_pending["drop"] = self._drop_cell(evt.x, evt.y)
 
     def _try_pickup_and_match(self, frame: Any, sx: int, sy: int) -> None:
         window_bbox = self._ctx.artifacts.window_bbox
@@ -399,6 +426,7 @@ class MainLoop:
         # Capture the prediction for self-supervised eval (resolved on drop).
         self._eval_pending = {
             "pred": [match.cell.row, match.cell.col] if match.cell else None,
+            "top": list(match.top_cell) if match.top_cell else None,
             "combined": round(match.combined, 3),
             "margin": round(match.margin, 3),
             "texture": round(match.texture, 1),
@@ -406,6 +434,7 @@ class MainLoop:
             "filled_before": (
                 self._board_state.filled_cells() if self._board_state else frozenset()
             ),
+            "drop": None,
         }
         self._eval_up_ts = 0.0
         if match.cell is None:

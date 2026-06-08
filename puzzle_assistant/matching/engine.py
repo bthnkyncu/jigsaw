@@ -224,6 +224,8 @@ def _match(
     best_x, best_y, best_combined = scored[0]
     second = scored[1][2] if len(scored) > 1 else 0.0
     margin = best_combined - second
+    top_row, top_col = _xy_to_cell(best_x, best_y, pw, ph, scale, target_map)
+    top_cell = (top_row, top_col)
 
     min_combined = (
         settings.min_combined_score
@@ -247,21 +249,21 @@ def _match(
     if best_combined < min_combined:
         return MatchResult(
             cell=None, combined=best_combined, margin=margin,
-            rejected_reason="low_score", texture=texture,
+            rejected_reason="low_score", texture=texture, top_cell=top_cell,
         )
     if margin < min_margin:
         return MatchResult(
             cell=None, combined=best_combined, margin=margin,
-            rejected_reason="low_margin", texture=texture,
+            rejected_reason="low_margin", texture=texture, top_cell=top_cell,
         )
 
-    row, col = _xy_to_cell(best_x, best_y, pw, ph, scale, target_map)
     return MatchResult(
-        cell=CellAddress(row=row, col=col),
+        cell=CellAddress(row=top_row, col=top_col),
         combined=best_combined,
         margin=margin,
         rejected_reason=None,
         texture=texture,
+        top_cell=top_cell,
     )
 
 

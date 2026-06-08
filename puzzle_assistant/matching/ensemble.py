@@ -31,6 +31,10 @@ class MatchResult:
     margin: float
     rejected_reason: str | None  # None on accept, e.g. "low_score" / "low_margin"
     texture: float = 0.0  # foreground texture (std-dev) of the picked piece
+    # Best candidate's cell, set even when the match is REJECTED. Diagnostics
+    # only: lets the self-supervised eval measure whether a rejected piece would
+    # have been placed correctly if the gate had passed (recall headroom).
+    top_cell: tuple[int, int] | None = None
 
 
 def combine_score(t: float, f: float, c: float, settings: Settings) -> float:
