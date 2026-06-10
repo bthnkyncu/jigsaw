@@ -116,11 +116,6 @@ class Settings:
     # (empty cells ≈1.0 light fraction, filled ≈0.0), so 0.45 sits in the empty
     # gap and classifies robustly without falsely marking empty cells filled.
     empty_cell_min_content_ratio: float = 0.45
-    # A light cell still counts as FILLED if its grayscale std-dev reaches this
-    # (real photo content is textured; the bare board is smooth). Rescues
-    # bright/glossy placed pieces that a light-only test mislabels empty — which
-    # let the matcher wrongly predict onto an already-occupied cell.
-    empty_cell_max_std: float = 28.0
 
     # --- Matching (primary quality) ---
     # template/feature/color weights are retained for config compatibility but
@@ -155,11 +150,6 @@ class Settings:
     # the failure mode that made the old confident-override hurt precision).
     lone_candidate_max_second: float = 0.12
     lone_candidate_floor: float = 0.42
-    # Occupied-cell guard: never predict onto a cell board-state reports as
-    # already filled unless the appearance score is at least this high (only
-    # then assume board-state false-positived an actually-empty cell). Stops
-    # placing a piece on top of an already-placed one.
-    occupied_cell_min_combined: float = 0.80
 
     # Flat-edge border constraint. A puzzle piece with a *straight* (flat) edge
     # must sit on the corresponding board border (flat top → row 0, flat left →

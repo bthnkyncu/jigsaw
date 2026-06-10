@@ -61,7 +61,6 @@ class BoardState:
         if board_bgr.size == 0:
             return
         hsv = cv2.cvtColor(board_bgr, cv2.COLOR_BGR2HSV)
-        gray = cv2.cvtColor(board_bgr, cv2.COLOR_BGR2GRAY)
         low = np.array(settings.board_light_hsv_low, dtype=np.uint8)
         high = np.array(settings.board_light_hsv_high, dtype=np.uint8)
         light = cv2.inRange(hsv, low, high)
@@ -77,14 +76,4 @@ class BoardState:
                 if patch.size == 0:
                     continue
                 light_frac = float((patch > 0).mean())
-                cell_std = float(gray[y0:y1, x0:x1].std())
-                # Empty = bare board: mostly light AND smooth (uniform surface).
-                # A placed piece is either non-light OR textured photo content —
-                # the texture clause rescues bright/glossy pieces (white balls,
-                # numbers, highlights) that look "light" yet are clearly filled,
-                # which a light-only test wrongly called empty.
-                is_empty = (
-                    light_frac >= empty_threshold
-                    and cell_std < settings.empty_cell_max_std
-                )
-                self._filled[r][c] = not is_empty
+                self._filled[r][c] = light_frac < empty_threshold

@@ -336,9 +336,7 @@ class MainLoop:
             board_bbox.x : board_bbox.x + board_bbox.w,
         ]
         self._board_state.update(crop, self._settings)  # fresh post-drop state
-        filled_now = self._board_state.filled_cells()
-        newly = filled_now - pend["filled_before"]
-        filled_n = len(filled_now)
+        newly = self._board_state.filled_cells() - pend["filled_before"]
         if len(newly) == 1:
             actual = list(next(iter(newly)))
             source = "diff"
@@ -348,10 +346,7 @@ class MainLoop:
             actual = pend["drop"]
             source = "drop"
         else:
-            plog.event(
-                "eval_skip", reason="newly_filled", n=len(newly),
-                pred=pend["pred"], filled_n=filled_n,
-            )
+            plog.event("eval_skip", reason="newly_filled", n=len(newly), pred=pend["pred"])
             return
         top = pend["top"]
         plog.event(
@@ -362,8 +357,6 @@ class MainLoop:
             correct=pend["pred"] == actual,
             recoverable=pend["pred"] is None and top == actual,  # reject that WOULD be right
             source=source,
-            filled_n=filled_n,  # board-state coverage sanity (should grow as board fills)
-            actual_filled=self._board_state.is_filled(actual[0], actual[1]),
             combined=pend["combined"],
             margin=pend["margin"],
             texture=pend["texture"],
