@@ -255,6 +255,21 @@ def _match(
         and best_combined >= settings.lone_candidate_floor
     )
 
+    # Occupied-cell guard. The empty-cell filter removes filled candidates when
+    # empty ones remain; this catches the residual case (every candidate maps to
+    # a filled cell, or board-state recovered it late): never place onto an
+    # occupied cell unless the appearance is very strong (board-state may have
+    # false-positived an actually-empty cell).
+    if (
+        board_state is not None
+        and board_state.is_filled(top_row, top_col)
+        and best_combined < settings.occupied_cell_min_combined
+    ):
+        return MatchResult(
+            cell=None, combined=best_combined, margin=margin,
+            rejected_reason="occupied_cell", texture=texture, top_cell=top_cell,
+        )
+
     if best_combined < min_combined and not lone:
         return MatchResult(
             cell=None, combined=best_combined, margin=margin,
