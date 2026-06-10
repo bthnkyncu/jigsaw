@@ -246,7 +246,16 @@ def _match(
     if texture < settings.piece_texture_flat_max:
         min_margin = max(min_margin, settings.flat_piece_min_margin)
 
-    if best_combined < min_combined:
+    # Lone-candidate rescue: one dominant peak with a negligible runner-up means
+    # the piece can only go to that cell, so accept it below the score gate.
+    # Gated on second≈0 (not on margin), so a repeated-texture tie — which has a
+    # real competing twin — can never trigger it.
+    lone = (
+        second <= settings.lone_candidate_max_second
+        and best_combined >= settings.lone_candidate_floor
+    )
+
+    if best_combined < min_combined and not lone:
         return MatchResult(
             cell=None, combined=best_combined, margin=margin,
             rejected_reason="low_score", texture=texture, top_cell=top_cell,

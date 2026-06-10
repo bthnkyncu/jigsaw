@@ -142,6 +142,15 @@ class Settings:
     piece_texture_flat_max: float = 18.0
     flat_piece_min_margin: float = 0.15
 
+    # Lone-candidate rescue. When the runner-up is negligible (the matcher found
+    # ONE dominant peak and nothing else), the piece can only go there, so accept
+    # it below the normal score gate. This is deliberately gated on the
+    # SECOND-best being ~0 — not on a large margin — so it cannot fire on
+    # repeated-texture ties (which have a real competing twin at half strength,
+    # the failure mode that made the old confident-override hurt precision).
+    lone_candidate_max_second: float = 0.12
+    lone_candidate_floor: float = 0.42
+
     # Flat-edge border constraint. A puzzle piece with a *straight* (flat) edge
     # must sit on the corresponding board border (flat top → row 0, flat left →
     # col 0, etc.); a corner piece has two flat edges. We read the flat edges
