@@ -73,7 +73,12 @@ def detect_board(frame_bgr: np.ndarray, settings: Settings) -> Bbox | None:
         if ch < min_board_h:
             continue
         aspect = cw / max(ch, 1)
-        if aspect < 0.7 or aspect > 3.0:
+        # Accept portrait boards too. The old floor of 0.7 silently rejected
+        # every *vertical* puzzle (a portrait 100-piece board is ~0.67 wide,
+        # measured), so detection worked on landscape images but never on
+        # portrait ones. A jigsaw is at most ~1:2 in either direction, so 0.45
+        # admits portrait boards while still excluding thin UI strips.
+        if aspect < 0.45 or aspect > 3.0:
             continue
         # Favor large, centrally-placed rectangles.
         cx = x + cw / 2

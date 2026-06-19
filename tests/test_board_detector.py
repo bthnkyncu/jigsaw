@@ -58,3 +58,28 @@ def test_board_detect_returns_none_on_blank() -> None:
     settings = load_settings(None)
     blank = np.zeros((600, 800, 3), dtype=np.uint8)
     assert detect_board(blank, settings) is None
+
+
+@pytest.mark.parametrize(
+    "name,min_aspect,max_aspect",
+    [
+        # Landscape board: wider than tall (aspect > 1). Always worked.
+        ("init_horizontal_1", 1.5, 2.5),
+        # Portrait board: taller than wide (aspect ~0.67). This is the
+        # regression guard — the old aspect floor of 0.7 silently rejected
+        # every vertical puzzle, so detection only worked on landscape images.
+        ("init_vertical_1", 0.55, 0.80),
+    ],
+)
+def test_board_detect_orientation(
+    fixtures_dir: Path, name: str, min_aspect: float, max_aspect: float
+) -> None:
+    settings = load_settings(None)
+    full = cv2.imread(str(fixtures_dir / f"{name}.png"))
+    assert full is not None, f"missing fixture: {name}.png"
+    # These fixtures are full-window captures (title bar included), exactly what
+    # the live capture path hands detect_board — no manual crop.
+    bbox = detect_board(full, settings)
+    assert bbox is not None, f"board not detected in {name} (orientation gate?)"
+    aspect = bbox.w / bbox.h
+    assert min_aspect <= aspect <= max_aspect, f"{name}: aspect {aspect:.2f} out of range"

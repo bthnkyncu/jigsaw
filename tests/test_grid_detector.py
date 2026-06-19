@@ -75,6 +75,37 @@ def test_count_anchored_grid(
     )
 
 
+@pytest.mark.parametrize(
+    "name,nominal_count",
+    [
+        ("init_horizontal_1", 100),  # landscape board
+        ("init_vertical_1", 100),    # portrait board — orientation regression guard
+    ],
+)
+def test_grid_orientation(fixtures_dir: Path, name: str, nominal_count: int) -> None:
+    """A portrait board must yield a grid (more rows than cols) just as a
+    landscape one does. These are full-window captures, so they bypass the
+    legacy WIN_Y crop helper."""
+    settings = load_settings(None)
+    settings.target_piece_count = nominal_count
+    full = cv2.imread(str(fixtures_dir / f"{name}.png"))
+    assert full is not None, f"missing fixture: {name}.png"
+    bbox = detect_board(full, settings)
+    assert bbox is not None, f"board not detected in {name}"
+    crop = full[bbox.y:bbox.y + bbox.h, bbox.x:bbox.x + bbox.w]
+    grid = detect_grid_from_init_view(crop, settings)
+    assert grid is not None, f"grid not detected on {name}"
+    total = grid.rows * grid.cols
+    assert abs(total - nominal_count) <= nominal_count * 0.2, (
+        f"{name}: {grid.rows}x{grid.cols}={total} far from {nominal_count}"
+    )
+    # Board orientation must carry into the grid: portrait → rows>cols.
+    if bbox.h > bbox.w:
+        assert grid.rows > grid.cols, f"{name}: portrait board gave {grid.rows}x{grid.cols}"
+    else:
+        assert grid.cols > grid.rows, f"{name}: landscape board gave {grid.rows}x{grid.cols}"
+
+
 def test_aspect_fallback_disabled() -> None:
     # Aspect alone can't determine the piece count, so the parametric design
     # no longer guesses a grid from it — the periodicity path is authoritative.
