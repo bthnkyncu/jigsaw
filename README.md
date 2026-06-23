@@ -17,12 +17,6 @@ python -m puzzle_assistant.main --help
 pytest
 ```
 
-## Architecture
-
-See [`yapboz_asistani_claude_code_brief(1).md`](yapboz_asistani_claude_code_brief(1).md)
-for the full design brief, and `.claude/plans/` for the executable plan tracked
-during development.
-
 ## Phase map
 
 | Phase | Scope |
