@@ -33,11 +33,33 @@ class BoardState:
         self._filled: list[list[bool]] = [
             [False] * grid.cols for _ in range(grid.rows)
         ]
+        # Last full-board crop, kept so the seam tie-breaker can read the pixel
+        # content of a placed neighbour cell and check edge continuity.
+        self._last_bgr: np.ndarray | None = None
 
     def is_filled(self, row: int, col: int) -> bool:
         if 0 <= row < self._grid.rows and 0 <= col < self._grid.cols:
             return self._filled[row][col]
         return False
+
+    def live_cell(self, row: int, col: int) -> np.ndarray | None:
+        """BGR sub-image of cell ``(row, col)`` from the last board crop.
+
+        Used by the seam tie-breaker to compare a candidate's placed-neighbour
+        edges against the dragged piece. Returns ``None`` when out of range or
+        no crop has been captured yet.
+        """
+        if self._last_bgr is None:
+            return None
+        if not (0 <= row < self._grid.rows and 0 <= col < self._grid.cols):
+            return None
+        h, w = self._last_bgr.shape[:2]
+        cell_w = w / self._grid.cols
+        cell_h = h / self._grid.rows
+        x0, y0 = round(col * cell_w), round(row * cell_h)
+        x1, y1 = round((col + 1) * cell_w), round((row + 1) * cell_h)
+        cell = self._last_bgr[y0:y1, x0:x1]
+        return cell if cell.size > 0 else None
 
     def filled_count(self) -> int:
         return sum(v for row in self._filled for v in row)
@@ -50,6 +72,7 @@ class BoardState:
 
         if board_bgr.size == 0:
             return
+        self._last_bgr = board_bgr
         hsv = cv2.cvtColor(board_bgr, cv2.COLOR_BGR2HSV)
         low = np.array(settings.board_light_hsv_low, dtype=np.uint8)
         high = np.array(settings.board_light_hsv_high, dtype=np.uint8)

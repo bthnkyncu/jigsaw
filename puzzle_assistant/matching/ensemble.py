@@ -31,6 +31,11 @@ class MatchResult:
     margin: float
     rejected_reason: str | None  # None on accept, e.g. "low_score" / "low_margin"
     texture: float = 0.0  # foreground texture (std-dev) of the picked piece
+    # Diagnostics: the runner-up candidate's cell (reveals distant-twin ties on
+    # rejections) and the seam continuity score when the tie-breaker resolved a
+    # repeated-texture tie. Both purely informational for the match log.
+    runner_up: tuple[int, int] | None = None
+    seam_score: float | None = None
 
 
 def combine_score(t: float, f: float, c: float, settings: Settings) -> float:

@@ -105,6 +105,42 @@ class Settings:
     # a clearer lead over the runner-up.
     min_margin: float = 0.05
 
+    # Confident-localization override (rescues late-game pieces). When the
+    # board-state filter has removed the occupied twin candidates, the true
+    # cell is often the *only* empty candidate left, giving a huge margin even
+    # though the absolute score sits in the systematic ceiling band. Accept
+    # such a dominant winner down to ``confident_score_floor`` instead of the
+    # full ``min_combined_score``. Cross-puzzle pieces don't reach this combo
+    # (measured 0/63 false accepts), so precision is preserved.
+    confident_margin_override: float = 0.25
+    confident_score_floor: float = 0.42
+
+    # --- Seam tie-break (live-neighbour continuity) ---
+    # The repeated bouquet image makes a piece tie across distant board
+    # positions (high combined, near-zero margin → low_margin reject). When BOTH
+    # twins are still empty the board-state filter can't help, so we break the
+    # tie with evidence from the *live* board: the true cell's already-placed
+    # neighbours show image content that the piece's edge continues, while the
+    # wrong twin sits in untouched territory (no neighbours) or against a
+    # different region (colour mismatch). This runs ONLY on the failure mode
+    # (best_combined ≥ min_combined, margin < seam_tie_band, non-flat piece,
+    # ≥2 distinct-cell candidates), so the clear-match common path and the
+    # latency budget are untouched.
+    seam_tie_band: float = 0.12
+    # Fraction of the piece/neighbour cell taken as the facing edge band.
+    seam_edge_frac: float = 0.30
+    # The edge band is split into this many segments along the seam so colour
+    # *variation* (not just a single mean) is compared — far more discriminating.
+    seam_segments: int = 4
+    # A candidate's mean cross-seam continuity (1 − Lab dist/40, foreground-
+    # masked) must reach this to count as evidence. ~0.45 ⇒ mean Lab gap ≲ 22,
+    # i.e. the colour genuinely continues across the seam.
+    seam_min_score: float = 0.45
+    # When several tied candidates have neighbour evidence, the winner must beat
+    # the runner-up's continuity by this much; otherwise the seam is ambiguous
+    # and we keep the original (precision-preserving) low_margin rejection.
+    seam_min_margin: float = 0.10
+
     # Pieces flatter than this foreground grayscale std-dev are treated as
     # "single-colour-ish": their location is ambiguous (the colour repeats
     # across the board), so they need a much larger margin to be trusted.

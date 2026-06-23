@@ -33,6 +33,7 @@ import numpy as np
 
 from puzzle_assistant.config import Settings
 from puzzle_assistant.matching.ensemble import MatchResult
+from puzzle_assistant.matching.seam_match import seam_break_tie
 from puzzle_assistant.reference.target_map import TargetMap
 from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import CellAddress
@@ -71,6 +72,8 @@ def match_piece(
         quality=target_map.quality,
         elapsed_ms=round(elapsed_ms, 1),
         rejected_reason=result.rejected_reason,
+        runner_up=list(result.runner_up) if result.runner_up else None,
+        seam_score=result.seam_score,
     )
     return result
 
@@ -202,6 +205,11 @@ def _match(
     best_x, best_y, best_combined = scored[0]
     second = scored[1][2] if len(scored) > 1 else 0.0
     margin = best_combined - second
+    runner_up = (
+        _xy_to_cell(scored[1][0], scored[1][1], pw, ph, scale, target_map)
+        if len(scored) > 1
+        else None
+    )
 
     min_combined = (
         settings.min_combined_score
@@ -222,15 +230,61 @@ def _match(
     if texture < settings.piece_texture_flat_max:
         min_margin = max(min_margin, settings.flat_piece_min_margin)
 
-    if best_combined < min_combined:
+    # Confident-localization override. A dominant winner — typically the only
+    # empty candidate left after the board-state filter removes occupied twins
+    # — is unambiguous even when its absolute score sits in the systematic
+    # "ceiling" band (drag artefacts + 3D bevel cap CCOEFF at ~0.45–0.55 on a
+    # genuinely correct placement). When the margin is this large the piece can
+    # only go to one place, so accept it down to a lower floor. Cross-puzzle
+    # pieces don't reach this (combined<0.55 & margin≥0.25) combo (measured
+    # 0/63), so precision holds.
+    confident = (
+        margin >= settings.confident_margin_override
+        and best_combined >= settings.confident_score_floor
+    )
+    if best_combined < min_combined and not confident:
         return MatchResult(
             cell=None, combined=best_combined, margin=margin,
-            rejected_reason="low_score", texture=texture,
+            rejected_reason="low_score", texture=texture, runner_up=runner_up,
         )
+
+    # Seam tie-break (live-neighbour continuity). The repeated bouquet image
+    # makes a real piece tie across distant positions: high combined, near-zero
+    # margin. When both twins are still empty the board-state filter can't help,
+    # so we break the tie with evidence from the live board — the true cell's
+    # placed neighbours show content the piece's edge continues, the wrong twin
+    # doesn't. Runs ONLY on this failure mode (real piece, close decision,
+    # non-flat, ≥2 distinct-cell candidates), so the clear-match path and the
+    # latency budget are untouched. If it can't decide we fall through to the
+    # original low_margin rejection — precision is preserved.
+    if (
+        board_state is not None
+        and best_combined >= min_combined
+        and margin < settings.seam_tie_band
+        and texture >= settings.piece_texture_flat_max
+    ):
+        tie = _distinct_cell_tie(
+            scored, best_combined, settings.seam_tie_band, pw, ph, scale, target_map
+        )
+        if len(tie) >= 2:
+            winner = seam_break_tie(piece, fg, tie, board_state, settings)
+            if winner is not None:
+                wx, wy, wcombined, seam_score = winner
+                row, col = _xy_to_cell(wx, wy, pw, ph, scale, target_map)
+                return MatchResult(
+                    cell=CellAddress(row=row, col=col),
+                    combined=wcombined,
+                    margin=margin,
+                    rejected_reason=None,
+                    texture=texture,
+                    runner_up=runner_up,
+                    seam_score=round(seam_score, 3),
+                )
+
     if margin < min_margin:
         return MatchResult(
             cell=None, combined=best_combined, margin=margin,
-            rejected_reason="low_margin", texture=texture,
+            rejected_reason="low_margin", texture=texture, runner_up=runner_up,
         )
 
     row, col = _xy_to_cell(best_x, best_y, pw, ph, scale, target_map)
@@ -240,7 +294,37 @@ def _match(
         margin=margin,
         rejected_reason=None,
         texture=texture,
+        runner_up=runner_up,
     )
+
+
+def _distinct_cell_tie(
+    scored: list[tuple[int, int, float]],
+    best_combined: float,
+    band: float,
+    pw: int,
+    ph: int,
+    scale: float,
+    target_map: TargetMap,
+) -> list[tuple[int, int, float, int, int]]:
+    """Top candidates within ``band`` of the best, one entry per distinct cell.
+
+    Returns ``[(x, y, combined, row, col), ...]``. NMS already separates peaks
+    spatially, but two peaks can still map to the same grid cell; we keep only
+    the highest-scoring candidate per cell so the seam tie-breaker compares
+    genuinely different positions.
+    """
+    out: list[tuple[int, int, float, int, int]] = []
+    seen: set[tuple[int, int]] = set()
+    for x, y, combined in scored:
+        if best_combined - combined > band:
+            break
+        row, col = _xy_to_cell(x, y, pw, ph, scale, target_map)
+        if (row, col) in seen:
+            continue
+        seen.add((row, col))
+        out.append((x, y, combined, row, col))
+    return out
 
 
 def _xy_to_cell(
