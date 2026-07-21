@@ -219,10 +219,12 @@ class Settings:
     # Above this many empty cells the holes merge into multi-cell regions and
     # shape carries no information (measured 0 % correct above ~30 empty).
     hole_shape_max_empty_cells: int = 12
-    # A hole must fit this much better than the runner-up. At ±8 px alignment
-    # search every level from 0.05 up measured error-free; 0.10 keeps a buffer
-    # above 0.05 while still firing 13 times.
-    hole_shape_min_gap: float = 0.10
+    # A hole must fit this much better than the runner-up. Swept on the 23
+    # endgame pickups appearance could not place: 0.15 fires 8, 0.10 fires 13,
+    # 0.08 fires 14, 0.05 fires 16 — all with zero errors — and 0.03 fires 19
+    # but gets 2 of them wrong. So the error onset sits between 0.05 and 0.03,
+    # and 0.05 is the most that can be taken for free.
+    hole_shape_min_gap: float = 0.05
     # Alignment search radius, in board pixels. Not cosmetic: without it the
     # same rule made 2 errors at gap 0.05, with it none.
     hole_shape_align_radius: int = 8
