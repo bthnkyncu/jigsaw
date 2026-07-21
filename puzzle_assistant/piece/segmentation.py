@@ -32,6 +32,12 @@ class PickedPiece:
     piece_core: np.ndarray   # BGR crop with edge tabs eroded away
     bbox: Bbox               # in region-local coords (relative to the input region)
     area_px: int             # number of pixels in the segmentation mask
+    # Which of (top, bottom, left, right) ran into the capture window's edge, so
+    # that side of the silhouette is cut off and its straightness is an artefact.
+    # This must be judged against the *region*: ``piece_full`` is tight-cropped
+    # to the piece, so every side touches its own border by construction and the
+    # question cannot be asked of it.
+    clipped_sides: tuple[bool, bool, bool, bool] = (False, False, False, False)
 
 
 def _desk_mask(region_bgr: np.ndarray, settings: Settings) -> np.ndarray | None:
@@ -196,4 +202,10 @@ def extract_piece(
         piece_core=piece_core,
         bbox=Bbox(x=int(x), y=int(y), w=int(w), h=int(h)),
         area_px=int(area),
+        clipped_sides=(
+            y == 0,
+            y + h >= region_bgr.shape[0],
+            x == 0,
+            x + w >= region_bgr.shape[1],
+        ),
     )

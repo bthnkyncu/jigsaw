@@ -111,3 +111,46 @@ def test_desk_coloured_piece_is_not_erased() -> None:
     # Must recover essentially the whole piece, not a sliver.
     assert h >= cell_h * 0.8, f"piece height {h} collapsed (expected >= {cell_h * 0.8:.0f})"
     assert w >= cell_w * 0.8, f"piece width {w} collapsed (expected >= {cell_w * 0.8:.0f})"
+
+
+def test_clipped_sides_reports_the_capture_window_edge() -> None:
+    """Segmentation must say which sides the capture window cut off.
+
+    The matcher suppresses flat-edge detection on a cut-off side, because such a
+    side looks straight by artefact. It used to derive that from the piece crop
+    itself — but that crop is tight to the piece, so every side touches its own
+    border and the answer was always "all four clipped", which silently disabled
+    the border constraint for every piece. Only segmentation, which sees the
+    piece inside the whole region, can answer it.
+    """
+    settings = load_settings(None)
+    desk = (210, 174, 150)
+    cell_w, cell_h = 53, 48
+    rng = np.random.default_rng(1)
+
+    def scene(offset_x: int) -> np.ndarray:
+        canvas = np.full((int(cell_h * 2.4), int(cell_w * 2.4), 3), desk, np.uint8)
+        content = np.clip(
+            np.full((cell_h, cell_w, 3), (90, 140, 70), np.float32)
+            + rng.normal(0, 15, (cell_h, cell_w, 3)),
+            0, 255,
+        ).astype(np.uint8)
+        top = (canvas.shape[0] - cell_h) // 2
+        canvas[top:top + cell_h, offset_x:offset_x + cell_w] = content
+        return canvas
+
+    centred = scene((int(cell_w * 2.4) - cell_w) // 2)
+    picked = extract_piece(
+        centred, (centred.shape[1] // 2, centred.shape[0] // 2), settings,
+        expected_cell=(cell_w, cell_h),
+    )
+    assert picked is not None
+    assert not any(picked.clipped_sides), "a fully visible piece is not clipped"
+
+    against_left = scene(0)
+    picked = extract_piece(
+        against_left, (cell_w // 2, against_left.shape[0] // 2), settings,
+        expected_cell=(cell_w, cell_h),
+    )
+    assert picked is not None
+    assert picked.clipped_sides[2], "piece touching the left window edge is clipped there"

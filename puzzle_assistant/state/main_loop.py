@@ -467,7 +467,8 @@ class MainLoop:
         # own foreground mask. The eroded core would discard the tab shape that
         # helps disambiguate position.
         match = match_piece(
-            result.piece.piece_full, tmap, self._settings, self._board_state
+            result.piece.piece_full, tmap, self._settings, self._board_state,
+            clipped_sides=result.piece.clipped_sides,
         )
         # Endgame rescue. Appearance stalls on the last few pieces, but the holes
         # left on the live board are shaped like the pieces that fill them. Only
@@ -519,11 +520,12 @@ class MainLoop:
             # Raw pre-segmentation crop, so segmentation itself can be re-run
             # and diagnosed offline (this is where the sky-piece bug lived).
             "region_img": (
+                # ``frame`` is already window-local (so is region_bbox) — adding
+                # the window origin again pointed this at the wrong place and
+                # made the recorded crops useless for offline diagnosis.
                 frame[
-                    window_bbox.y + result.region_bbox.y:
-                    window_bbox.y + result.region_bbox.y + result.region_bbox.h,
-                    window_bbox.x + result.region_bbox.x:
-                    window_bbox.x + result.region_bbox.x + result.region_bbox.w,
+                    result.region_bbox.y:result.region_bbox.y + result.region_bbox.h,
+                    result.region_bbox.x:result.region_bbox.x + result.region_bbox.w,
                 ].copy()
                 if self._recorder else None
             ),

@@ -48,6 +48,7 @@ def match_piece(
     target_map: TargetMap,
     settings: Settings,
     board_state: "BoardState | None" = None,
+    clipped_sides: tuple[bool, bool, bool, bool] | None = None,
 ) -> MatchResult:
     """Localize ``piece_bgr`` on the reference board and return its cell.
 
@@ -59,7 +60,7 @@ def match_piece(
     """
 
     started = time.monotonic()
-    result = _match(piece_bgr, target_map, settings, board_state)
+    result = _match(piece_bgr, target_map, settings, board_state, clipped_sides)
     elapsed_ms = (time.monotonic() - started) * 1000.0
     plog.event(
         "match",
@@ -80,6 +81,7 @@ def _match(
     target_map: TargetMap,
     settings: Settings,
     board_state: "BoardState | None" = None,
+    clipped_sides: tuple[bool, bool, bool, bool] | None = None,
 ) -> MatchResult:
     if piece_bgr.size == 0:
         return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="empty_piece")
@@ -109,11 +111,18 @@ def _match(
         return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="empty_fg")
     cx0, cx1 = int(cols_any[0]), int(cols_any[-1]) + 1
     cy0, cy1 = int(rows_any[0]), int(rows_any[-1]) + 1
-    # If the silhouette runs into the original crop border the piece was likely
-    # clipped there, so that side's straight edge is an artefact — suppress flat
-    # detection on it (precision guard against a false border constraint).
-    orig_h, orig_w = piece_bgr.shape[:2]
-    clipped = (cy0 == 0, cy1 >= orig_h, cx0 == 0, cx1 >= orig_w)  # top,bottom,left,right
+    # Which sides were cut off by the capture window. A cut-off side looks
+    # straight by artefact, so flat detection must be suppressed there. This CANNOT be derived
+    # from ``piece_bgr`` when the caller already tight-cropped it — every side
+    # then touches its own border and the test says "all four clipped", which
+    # silently disabled the flat-edge constraint entirely. Segmentation knows
+    # the answer (it saw the piece inside the region), so it passes it in; the
+    # local fallback stays for callers that hand over an uncropped region.
+    if clipped_sides is not None:
+        clipped = clipped_sides
+    else:
+        orig_h, orig_w = piece_bgr.shape[:2]
+        clipped = (cy0 == 0, cy1 >= orig_h, cx0 == 0, cx1 >= orig_w)
     piece = piece_bgr[cy0:cy1, cx0:cx1]
     fg = fg[cy0:cy1, cx0:cx1]
     if scale > 1.0:
