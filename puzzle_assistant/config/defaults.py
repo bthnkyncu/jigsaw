@@ -150,20 +150,23 @@ class Settings:
     # wrong-puzzle pieces land ~0.45. Measured separation: at 0.55 the live
     # captures keep ~87 % recall while ~87 % of cross-puzzle pieces are
     # rejected — the balance point for the ≥80 % predict / ~95 % accuracy goal.
-    # Lowered 0.55 -> 0.45 from a measured sweep on 84 ground-truth samples
-    # (captures_v3, physical-landing labels): recall 95.2 % -> 98.8 % with
-    # precision staying at 100 %. The ceiling (top candidate correct) on that
-    # set is 98.8 %, so 0.45 reaches it exactly. Scores below this were never
-    # correct, so going lower buys nothing.
-    min_combined_score: float = 0.45
+    # Held at 0.55. A sweep on 84 ground-truth samples showed 0.55, 0.50 and
+    # 0.45 all accept exactly the same 80 pickups — the score gate was never
+    # the binding constraint here, so lowering it buys nothing and only widens
+    # the door for genuinely dim matches.
+    min_combined_score: float = 0.55
     # Raised from 0.02 — at 0.02 ambiguous (near-tie) matches were accepted and
     # placed in the wrong cell. A wrong overlay is worse than none, so require
-    # a clearer lead over the runner-up. Relaxed 0.05 -> 0.03 on the same
-    # measured sweep: it was the *binding* gate (lowering the score alone gained
-    # nothing), and 0.03 recovered 3 correct predictions with zero new errors.
-    # Flat/low-texture pieces still need flat_piece_min_margin, which is the
-    # guard that matters for repeated-pattern images.
-    min_margin: float = 0.03
+    # a clearer lead over the runner-up.
+    #
+    # Briefly relaxed to 0.03 because a sweep over 84 ground-truth samples said
+    # it would add 3 correct predictions at zero cost. The very next live game
+    # produced a wrong overlay at margin 0.034 — a failure mode absent from the
+    # tuning set. That is overfitting to 84 samples, so it is back at 0.05, the
+    # value two full games validated. Recall on the sweep drops 98.8 % -> 95.2 %,
+    # still meeting the 95 % target, and precision is what the user actually
+    # cares about. Do not lower this again without held-out evidence.
+    min_margin: float = 0.05
 
     # Pieces flatter than this foreground grayscale std-dev are treated as
     # "single-colour-ish": their location is ambiguous (the colour repeats

@@ -71,18 +71,17 @@ def test_recall_on_reliable_labels(fixtures_dir: Path) -> None:
     assert recall >= 0.95, f"recall {recall:.1%} below the 95 % target"
 
 
-def test_tightening_gates_would_lose_recall(fixtures_dir: Path) -> None:
-    """Guard the tuning rationale: the old gates really did cost predictions.
+def test_known_field_error_is_rejected() -> None:
+    """The near-tie that produced a wrong overlay in a live game stays rejected.
 
-    If someone reverts to 0.55/0.05 this fails, documenting that the relaxation
-    was evidence-based rather than a guess.
+    Sweeping thresholds over the 84-sample set said margin 0.03 was free — zero
+    errors. The next live game immediately produced a wrong overlay on a piece
+    scoring combined 0.516 / margin 0.034, a case the tuning set simply did not
+    contain. This pins that specific evidence so the sweep cannot talk us into
+    re-opening the gate: any margin floor at or below 0.034 fails here.
     """
     settings = load_settings(None)
-    rows = _load(fixtures_dir)
-    now = sum(1 for r in rows if _accepts(r, settings))
-
-    old = load_settings(None)
-    old.min_combined_score = 0.55
-    old.min_margin = 0.05
-    before = sum(1 for r in rows if _accepts(r, old))
-    assert now > before, "relaxed gates should predict on strictly more pickups"
+    field_error = {"combined": 0.516, "margin": 0.034, "texture": 41.4}
+    assert not _accepts(field_error, settings), (
+        "a piece with margin 0.034 must be rejected — it was a wrong overlay in play"
+    )
