@@ -326,13 +326,20 @@ class MainLoop:
         ]
         self._board_state.update(crop, self._settings)
 
-    def _eval_placement(self, frame: Any) -> None:
+    def _eval_placement(self, frame: Any, force: bool = False) -> None:
         """After a drop settles, find the cell the piece actually landed in
         (board-state diff) and log predicted-vs-actual. Self-supervised ground
-        truth: no manual labelling, zero precision risk (logging only)."""
+        truth: no manual labelling, zero precision risk (logging only).
+
+        ``force`` skips the settle wait. A player often grabs the next piece
+        well inside ``eval_settle_s`` (measured: 0.42 s between drop and the
+        next pickup), which used to overwrite the pending evaluation and lose
+        the sample — 100 placements produced only 2 records. The game snaps a
+        piece home immediately, so resolving at the next pickup is accurate.
+        """
         if self._eval_pending is None or self._eval_up_ts == 0.0:
             return
-        if time.monotonic() - self._eval_up_ts < self._settings.eval_settle_s:
+        if not force and time.monotonic() - self._eval_up_ts < self._settings.eval_settle_s:
             return
         pend = self._eval_pending
         self._eval_pending = None
@@ -438,6 +445,11 @@ class MainLoop:
         board_bbox = self._ctx.artifacts.board_bbox
         assert window_bbox is not None and grid is not None and tmap is not None
         assert board_bbox is not None
+        # Resolve any evaluation still waiting on the settle timer before it is
+        # overwritten below — otherwise fast play discards nearly every sample.
+        if self._eval_pending is not None and self._eval_up_ts != 0.0:
+            self._eval_placement(frame, force=True)
+
         cursor_window = (sx - window_bbox.x, sy - window_bbox.y)
         result = pickup_from_window(frame, cursor_window, grid, self._settings)
         if result is None:
