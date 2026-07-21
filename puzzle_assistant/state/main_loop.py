@@ -388,6 +388,7 @@ class MainLoop:
                 pend["board_img"],
                 {
                     "_region_img": pend.get("region_img"),
+                    "_live_img": pend.get("live_img"),
                     "grid": {"cols": grid.cols, "rows": grid.rows,
                              "cell_w": grid.cell_w, "cell_h": grid.cell_h},
                     "actual_cell": actual,
@@ -481,6 +482,16 @@ class MainLoop:
             # Images for offline dataset capture (only kept when recording).
             "piece_img": result.piece.piece_full if self._recorder else None,
             "board_img": tmap.board_image if self._recorder else None,
+            # Live board at pickup time — shows which neighbours are already
+            # placed, which is what an interlocking (tab/blank) signal would
+            # need. board_img is the *reference*, so it cannot answer that.
+            "live_img": (
+                frame[
+                    board_bbox.y:board_bbox.y + board_bbox.h,
+                    board_bbox.x:board_bbox.x + board_bbox.w,
+                ].copy()
+                if self._recorder else None
+            ),
             # Raw pre-segmentation crop, so segmentation itself can be re-run
             # and diagnosed offline (this is where the sky-piece bug lived).
             "region_img": (

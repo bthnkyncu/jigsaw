@@ -100,6 +100,9 @@ class PickupRecorder:
         region = meta.pop("_region_img", None)
         if region is not None and region.size:
             cv2.imwrite(str(sample_dir / "region.png"), region)
+        live = meta.pop("_live_img", None)
+        if live is not None and live.size:
+            cv2.imwrite(str(sample_dir / "live.png"), live)
         (sample_dir / "meta.json").write_text(
             json.dumps(meta, indent=2), encoding="utf-8"
         )
