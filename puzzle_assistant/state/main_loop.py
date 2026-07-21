@@ -380,6 +380,7 @@ class MainLoop:
                 pend["piece_img"],
                 pend["board_img"],
                 {
+                    "_region_img": pend.get("region_img"),
                     "grid": {"cols": grid.cols, "rows": grid.rows,
                              "cell_w": grid.cell_w, "cell_h": grid.cell_h},
                     "actual_cell": actual,
@@ -468,6 +469,17 @@ class MainLoop:
             # Images for offline dataset capture (only kept when recording).
             "piece_img": result.piece.piece_full if self._recorder else None,
             "board_img": tmap.board_image if self._recorder else None,
+            # Raw pre-segmentation crop, so segmentation itself can be re-run
+            # and diagnosed offline (this is where the sky-piece bug lived).
+            "region_img": (
+                frame[
+                    window_bbox.y + result.region_bbox.y:
+                    window_bbox.y + result.region_bbox.y + result.region_bbox.h,
+                    window_bbox.x + result.region_bbox.x:
+                    window_bbox.x + result.region_bbox.x + result.region_bbox.w,
+                ].copy()
+                if self._recorder else None
+            ),
         }
         self._eval_up_ts = 0.0
         if match.cell is None:

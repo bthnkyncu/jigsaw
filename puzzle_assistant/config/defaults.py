@@ -94,6 +94,26 @@ class Settings:
     min_piece_area_ratio: float = 0.4
     group_area_ratio: float = 4.0
     piece_core_erode_ratio: float = 0.15
+    # Desk (background) detection for piece segmentation. The fixed
+    # ``background_blue_hsv_*`` band is far too wide: a puzzle whose image
+    # contains sky/water sits in the SAME hue band as the desk, so 42 % of a
+    # sky-coloured piece was being erased as "background" and the matcher
+    # received a sliver (measured on a real capture: piece came out 17 px tall
+    # instead of ~68). The desk is rendered as ONE exact colour (measured std =
+    # 0 across the whole desk), while real image content always carries
+    # texture — so we measure the desk colour from the crop border and match it
+    # tightly instead. At tolerance 8 only ~9 % of sky pixels look like desk,
+    # and the flatness test below removes almost all of those.
+    desk_colour_tolerance: int = 8
+    # A pixel only counts as desk if its local neighbourhood is flat. The desk
+    # measures 0.0 local std; puzzle content medians 6.3. Being strict here is
+    # the safe direction: it can only *keep* piece pixels, never erase them.
+    desk_flat_std_max: float = 3.0
+    # Fraction of the crop border that must match the modal border colour for
+    # it to be trusted as "the piece sits on open desk". Below this (e.g. the
+    # piece is picked straight out of an overlapping pile) we fall back to the
+    # legacy fixed hue band.
+    desk_border_uniform_min: float = 0.45
 
     # --- Board state (empty-cell tracking) ---
     # While READY, the filled[][] matrix is refreshed at most this often

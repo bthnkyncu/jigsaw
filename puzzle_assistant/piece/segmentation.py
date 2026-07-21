@@ -34,6 +34,45 @@ class PickedPiece:
     area_px: int             # number of pixels in the segmentation mask
 
 
+def _desk_mask(region_bgr: np.ndarray, settings: Settings) -> np.ndarray | None:
+    """Mask of desk pixels, measured from this crop instead of a fixed hue band.
+
+    The Gamyun desk is a single exact colour (measured std = 0 over the whole
+    desk); puzzle content always carries texture. So we read the desk colour off
+    the crop's border ring — the player drags a piece clear of the pile before
+    picking it up, so that ring really is open desk — and match it tightly. A
+    pixel counts as desk only if it is both *that colour* and in a *flat*
+    neighbourhood, which keeps sky/water pieces (same hue as the desk) intact.
+
+    Returns ``None`` when the border isn't uniform enough to trust as desk, so
+    the caller can fall back to the legacy fixed band.
+    """
+    h, w = region_bgr.shape[:2]
+    if h < 8 or w < 8:
+        return None
+    band = max(2, min(h, w) // 10)
+    ring = np.concatenate([
+        region_bgr[:band].reshape(-1, 3),
+        region_bgr[-band:].reshape(-1, 3),
+        region_bgr[:, :band].reshape(-1, 3),
+        region_bgr[:, -band:].reshape(-1, 3),
+    ]).astype(np.int16)
+    desk = np.median(ring, axis=0)
+    tol = settings.desk_colour_tolerance
+    uniform = float((np.abs(ring - desk).max(axis=1) <= tol).mean())
+    if uniform < settings.desk_border_uniform_min:
+        return None
+
+    close = np.abs(region_bgr.astype(np.int16) - desk).max(axis=2) <= tol
+    # Flatness: the desk has zero local variance, real content does not.
+    gray = cv2.cvtColor(region_bgr, cv2.COLOR_BGR2GRAY).astype(np.float32)
+    mean = cv2.blur(gray, (5, 5))
+    var = cv2.blur(gray * gray, (5, 5)) - mean * mean
+    flat = np.sqrt(np.maximum(var, 0.0)) <= settings.desk_flat_std_max
+    mask: np.ndarray = ((close & flat).astype(np.uint8)) * 255
+    return mask
+
+
 def extract_piece(
     region_bgr: np.ndarray,
     cursor_local: tuple[int, int],
@@ -60,7 +99,11 @@ def extract_piece(
     board_low = np.array(settings.board_light_hsv_low, dtype=np.uint8)
     board_high = np.array(settings.board_light_hsv_high, dtype=np.uint8)
 
-    bg_mask = cv2.inRange(hsv, bg_low, bg_high)
+    bg_mask = _desk_mask(region_bgr, settings)
+    if bg_mask is None:
+        # Border isn't open desk (piece pulled straight from a pile) — fall back
+        # to the legacy fixed hue band.
+        bg_mask = cv2.inRange(hsv, bg_low, bg_high)
     board_mask = cv2.inRange(hsv, board_low, board_high)
 
     piece_mask = cv2.bitwise_not(cv2.bitwise_or(bg_mask, board_mask))

@@ -96,6 +96,10 @@ class PickupRecorder:
         sample_dir.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(sample_dir / "piece.png"), piece_bgr)
         cv2.imwrite(str(sample_dir / "board.png"), board_bgr)
+        # Image entries (leading underscore) go to disk, not into meta.json.
+        region = meta.pop("_region_img", None)
+        if region is not None and region.size:
+            cv2.imwrite(str(sample_dir / "region.png"), region)
         (sample_dir / "meta.json").write_text(
             json.dumps(meta, indent=2), encoding="utf-8"
         )

@@ -5,10 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 
 import cv2
+import numpy as np
 
 from puzzle_assistant.config import load_settings
 from puzzle_assistant.piece.group_detection import classify
 from puzzle_assistant.piece.pickup import pickup_from_window
+from puzzle_assistant.piece.segmentation import extract_piece
 from puzzle_assistant.utils.coords import GridSpec
 
 WIN_X, WIN_Y, WIN_W, WIN_H = 0, 64, 1920, 1016
@@ -71,3 +73,41 @@ def test_extract_returns_none_on_empty_desk(fixtures_dir: Path) -> None:
     # Either no piece, or a tiny noise blob.
     if result is not None:
         assert result.piece.area_px < 800
+
+
+def test_desk_coloured_piece_is_not_erased() -> None:
+    """A piece whose image content shares the desk's hue must survive segmentation.
+
+    Regression guard for the biggest accuracy bug found in the field: the desk
+    is matched with a *fixed* blue hue band, and a puzzle containing sky/water
+    falls in that same band — so ~40 % of a sky piece was erased as background
+    and the matcher got a sliver (a real capture came out 17 px tall instead of
+    ~68), which localises nowhere and yields low-margin rejects or wrong cells.
+    Segmentation now measures the desk colour off the crop border and requires
+    flatness, so same-hue content is kept.
+    """
+    settings = load_settings(None)
+    desk = (210, 174, 150)  # the real Gamyun desk colour (measured std = 0)
+    cell_w, cell_h = 53, 48
+
+    # Sky-like content: the desk hue with real texture on top.
+    rng = np.random.default_rng(0)
+    cell = np.full((cell_h, cell_w, 3), desk, np.uint8)
+    noise = rng.normal(0, 14, (cell_h, cell_w, 3))
+    grad = np.linspace(-18, 18, cell_h)[:, None, None]
+    cell = np.clip(cell.astype(np.float32) + noise + grad, 0, 255).astype(np.uint8)
+
+    scene = np.full((int(cell_h * 2.4), int(cell_w * 2.4), 3), desk, np.uint8)
+    oy = (scene.shape[0] - cell_h) // 2
+    ox = (scene.shape[1] - cell_w) // 2
+    scene[oy:oy + cell_h, ox:ox + cell_w] = cell
+
+    picked = extract_piece(
+        scene, (scene.shape[1] // 2, scene.shape[0] // 2), settings,
+        expected_cell=(cell_w, cell_h),
+    )
+    assert picked is not None, "sky-coloured piece was erased entirely"
+    h, w = picked.piece_full.shape[:2]
+    # Must recover essentially the whole piece, not a sliver.
+    assert h >= cell_h * 0.8, f"piece height {h} collapsed (expected >= {cell_h * 0.8:.0f})"
+    assert w >= cell_w * 0.8, f"piece width {w} collapsed (expected >= {cell_w * 0.8:.0f})"
