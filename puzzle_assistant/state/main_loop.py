@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
@@ -25,7 +26,8 @@ from puzzle_assistant.calibration.reference_panel import (
     detect_reference_panel,
 )
 from puzzle_assistant.config import Settings
-from puzzle_assistant.matching.engine import match_piece
+from puzzle_assistant.matching.engine import _foreground_mask, match_piece
+from puzzle_assistant.matching.hole_shape import rescue_by_hole_shape
 from puzzle_assistant.piece.board_state import BoardState
 from puzzle_assistant.piece.group_detection import classify as classify_piece
 from puzzle_assistant.piece.pickup import pickup_from_window
@@ -467,6 +469,27 @@ class MainLoop:
         match = match_piece(
             result.piece.piece_full, tmap, self._settings, self._board_state
         )
+        # Endgame rescue. Appearance stalls on the last few pieces, but the holes
+        # left on the live board are shaped like the pieces that fill them. Only
+        # consulted when appearance said nothing, so a correct overlay can never
+        # be overturned — it can only supply one that was missing.
+        shape_rescued = False
+        if match.cell is None:
+            live_board = frame[
+                board_bbox.y:board_bbox.y + board_bbox.h,
+                board_bbox.x:board_bbox.x + board_bbox.w,
+            ]
+            cell = rescue_by_hole_shape(
+                _foreground_mask(result.piece.piece_full), live_board, grid, self._settings
+            )
+            if cell is not None:
+                plog.event(
+                    "hole_shape_rescue", cell=[cell.row, cell.col],
+                    after=match.rejected_reason,
+                )
+                match = replace(match, cell=cell, rejected_reason=None)
+                shape_rescued = True
+
         # Capture the prediction for self-supervised eval (resolved on drop).
         self._eval_pending = {
             "pred": [match.cell.row, match.cell.col] if match.cell else None,
@@ -475,6 +498,7 @@ class MainLoop:
             "margin": round(match.margin, 3),
             "texture": round(match.texture, 1),
             "rejected": match.rejected_reason,
+            "shape_rescued": shape_rescued,
             "filled_before": (
                 self._board_state.filled_cells() if self._board_state else frozenset()
             ),

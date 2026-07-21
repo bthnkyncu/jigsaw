@@ -212,6 +212,23 @@ class Settings:
     # fraction of the piece size; a tab/blank bulges ~0.2–0.3, so 0.12 keeps a
     # wide safety gap and flat detection biases to false-negative (no harm).
     flat_edge_max_deviation: float = 0.12
+    # --- Endgame hole-shape rescue (matching/hole_shape.py) ---
+    # Runs only when appearance produced NO prediction, so it can add an overlay
+    # but never overturn a correct one. Measured on 43 recorded pickups the
+    # matcher failed to predict: 13 rescued, 0 errors.
+    # Above this many empty cells the holes merge into multi-cell regions and
+    # shape carries no information (measured 0 % correct above ~30 empty).
+    hole_shape_max_empty_cells: int = 12
+    # A hole must fit this much better than the runner-up. At ±8 px alignment
+    # search every level from 0.05 up measured error-free; 0.10 keeps a buffer
+    # above 0.05 while still firing 13 times.
+    hole_shape_min_gap: float = 0.10
+    # Alignment search radius, in board pixels. Not cosmetic: without it the
+    # same rule made 2 errors at gap 0.05, with it none.
+    hole_shape_align_radius: int = 8
+    # Fraction of a cell that must be bare board for it to count as a hole.
+    hole_shape_empty_min: float = 0.45
+
     # Silhouette neutralisation. The tight piece crop is a rectangle, so the gaps
     # between the tabs hold desk, not puzzle content — and CCOEFF takes no mask,
     # so that outline joins the template and the match partly scores the piece's
