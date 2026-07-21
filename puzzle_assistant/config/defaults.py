@@ -212,6 +212,17 @@ class Settings:
     # fraction of the piece size; a tab/blank bulges ~0.2–0.3, so 0.12 keeps a
     # wide safety gap and flat detection biases to false-negative (no harm).
     flat_edge_max_deviation: float = 0.12
+    # Silhouette neutralisation. The tight piece crop is a rectangle, so the gaps
+    # between the tabs hold desk, not puzzle content — and CCOEFF takes no mask,
+    # so that outline joins the template and the match partly scores the piece's
+    # *shape* against board luminance structure. Unrelated pieces then pile onto
+    # the same few high-contrast cells. Filling the background with the piece's
+    # own mean fixes it (measured on 266 recorded pickups: 71 % -> 97 % correct).
+    # Guarded by this threshold because the foreground mask reads the background
+    # colour off the crop corners, so on pure-content images it mislabels content
+    # as background and filling would destroy the template. Desk is flat (colour
+    # std 4.3 measured); misread content is not (27.7).
+    silhouette_bg_max_std: float = 12.0
     # The board reference (~709×501, cell ~42 px) is upscaled by this factor
     # before matching so CCOEFF and ORB have enough detail to separate
     # repeated-texture pieces. 1.5 → cell ~63 px, keeping P95 latency under the
