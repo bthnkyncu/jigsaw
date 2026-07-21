@@ -1,0 +1,1442 @@
+[
+ {
+  "sample": "pickup_0000",
+  "top": [
+   6,
+   6
+  ],
+  "combined": 0.7431,
+  "margin": 0.2837,
+  "texture": 53.2,
+  "actual": [
+   6,
+   6
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0001",
+  "top": [
+   8,
+   9
+  ],
+  "combined": 0.6517,
+  "margin": 0.1898,
+  "texture": 61.56,
+  "actual": [
+   8,
+   9
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0002",
+  "top": [
+   4,
+   6
+  ],
+  "combined": 0.7888,
+  "margin": 0.2135,
+  "texture": 55.15,
+  "actual": [
+   4,
+   6
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0003",
+  "top": [
+   4,
+   5
+  ],
+  "combined": 0.8061,
+  "margin": 0.3099,
+  "texture": 60.51,
+  "actual": [
+   4,
+   5
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0004",
+  "top": [
+   8,
+   5
+  ],
+  "combined": 0.7237,
+  "margin": 0.2096,
+  "texture": 54.33,
+  "actual": [
+   8,
+   5
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0005",
+  "top": [
+   3,
+   8
+  ],
+  "combined": 0.6551,
+  "margin": 0.1445,
+  "texture": 47.24,
+  "actual": [
+   3,
+   8
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0006",
+  "top": [
+   8,
+   2
+  ],
+  "combined": 0.5637,
+  "margin": 0.0619,
+  "texture": 53.44,
+  "actual": [
+   8,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0007",
+  "top": [
+   6,
+   5
+  ],
+  "combined": 0.6744,
+  "margin": 0.1655,
+  "texture": 48.67,
+  "actual": [
+   6,
+   5
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0008",
+  "top": [
+   3,
+   9
+  ],
+  "combined": 0.6449,
+  "margin": 0.1865,
+  "texture": 47.54,
+  "actual": [
+   3,
+   9
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0009",
+  "top": [
+   7,
+   9
+  ],
+  "combined": 0.7589,
+  "margin": 0.3004,
+  "texture": 52.73,
+  "actual": [
+   7,
+   9
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0010",
+  "top": [
+   2,
+   2
+  ],
+  "combined": 0.6467,
+  "margin": 0.1915,
+  "texture": 49.77,
+  "actual": [
+   2,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0011",
+  "top": [
+   7,
+   6
+  ],
+  "combined": 0.8066,
+  "margin": 0.3608,
+  "texture": 60.1,
+  "actual": [
+   7,
+   6
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0012",
+  "top": [
+   8,
+   10
+  ],
+  "combined": 0.6102,
+  "margin": 0.0787,
+  "texture": 65.77,
+  "actual": [
+   8,
+   10
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0013",
+  "top": [
+   6,
+   3
+  ],
+  "combined": 0.806,
+  "margin": 0.2085,
+  "texture": 51.01,
+  "actual": [
+   6,
+   3
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0014",
+  "top": [
+   2,
+   4
+  ],
+  "combined": 0.6786,
+  "margin": 0.222,
+  "texture": 55.58,
+  "actual": [
+   2,
+   4
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0015",
+  "top": [
+   7,
+   8
+  ],
+  "combined": 0.6803,
+  "margin": 0.2096,
+  "texture": 60.24,
+  "actual": [
+   7,
+   8
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0016",
+  "top": [
+   4,
+   0
+  ],
+  "combined": 0.6152,
+  "margin": 0.1465,
+  "texture": 60.09,
+  "actual": [
+   4,
+   0
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0017",
+  "top": [
+   5,
+   4
+  ],
+  "combined": 0.5934,
+  "margin": 0.0986,
+  "texture": 34.61,
+  "actual": [
+   5,
+   4
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0018",
+  "top": [
+   7,
+   1
+  ],
+  "combined": 0.6284,
+  "margin": 0.1036,
+  "texture": 55.31,
+  "actual": [
+   7,
+   1
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0019",
+  "top": [
+   1,
+   2
+  ],
+  "combined": 0.6345,
+  "margin": 0.1243,
+  "texture": 46.64,
+  "actual": [
+   1,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0020",
+  "top": [
+   3,
+   6
+  ],
+  "combined": 0.7984,
+  "margin": 0.2439,
+  "texture": 67.24,
+  "actual": [
+   3,
+   6
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0021",
+  "top": [
+   8,
+   3
+  ],
+  "combined": 0.7192,
+  "margin": 0.2749,
+  "texture": 55.53,
+  "actual": [
+   8,
+   3
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0022",
+  "top": [
+   0,
+   7
+  ],
+  "combined": 0.6228,
+  "margin": 0.0867,
+  "texture": 43.11,
+  "actual": [
+   0,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0023",
+  "top": [
+   3,
+   7
+  ],
+  "combined": 0.7261,
+  "margin": 0.2876,
+  "texture": 57.7,
+  "actual": [
+   3,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0024",
+  "top": [
+   7,
+   10
+  ],
+  "combined": 0.6899,
+  "margin": 0.6899,
+  "texture": 56.32,
+  "actual": [
+   7,
+   10
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0025",
+  "top": [
+   8,
+   10
+  ],
+  "combined": 0.6638,
+  "margin": 0.2237,
+  "texture": 63.58,
+  "actual": [
+   8,
+   10
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0026",
+  "top": [
+   7,
+   7
+  ],
+  "combined": 0.6398,
+  "margin": 0.2023,
+  "texture": 53.67,
+  "actual": [
+   7,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0027",
+  "top": [
+   6,
+   4
+  ],
+  "combined": 0.6552,
+  "margin": 0.1863,
+  "texture": 45.9,
+  "actual": [
+   6,
+   4
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0028",
+  "top": [
+   3,
+   4
+  ],
+  "combined": 0.8174,
+  "margin": 0.2855,
+  "texture": 63.94,
+  "actual": [
+   3,
+   4
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0029",
+  "top": [
+   2,
+   3
+  ],
+  "combined": 0.6417,
+  "margin": 0.1351,
+  "texture": 51.46,
+  "actual": [
+   2,
+   3
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0030",
+  "top": [
+   5,
+   2
+  ],
+  "combined": 0.6451,
+  "margin": 0.1453,
+  "texture": 41.93,
+  "actual": [
+   5,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0031",
+  "top": [
+   4,
+   5
+  ],
+  "combined": 0.6123,
+  "margin": 0.1496,
+  "texture": 49.12,
+  "actual": [
+   5,
+   4
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0032",
+  "top": [
+   1,
+   1
+  ],
+  "combined": 0.6651,
+  "margin": 0.1902,
+  "texture": 48.42,
+  "actual": [
+   1,
+   1
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0033",
+  "top": [
+   2,
+   6
+  ],
+  "combined": 0.7371,
+  "margin": 0.2273,
+  "texture": 55.68,
+  "actual": [
+   2,
+   6
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0034",
+  "top": [
+   2,
+   7
+  ],
+  "combined": 0.6825,
+  "margin": 0.1542,
+  "texture": 44.68,
+  "actual": [
+   2,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0035",
+  "top": [
+   6,
+   8
+  ],
+  "combined": 0.6383,
+  "margin": 0.1764,
+  "texture": 59.95,
+  "actual": [
+   6,
+   8
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0036",
+  "top": [
+   5,
+   3
+  ],
+  "combined": 0.6718,
+  "margin": 0.1543,
+  "texture": 37.22,
+  "actual": [
+   5,
+   3
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0037",
+  "top": [
+   8,
+   6
+  ],
+  "combined": 0.682,
+  "margin": 0.1783,
+  "texture": 62.6,
+  "actual": [
+   8,
+   6
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0038",
+  "top": [
+   7,
+   3
+  ],
+  "combined": 0.7293,
+  "margin": 0.2912,
+  "texture": 54.68,
+  "actual": [
+   7,
+   3
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0039",
+  "top": [
+   7,
+   4
+  ],
+  "combined": 0.7424,
+  "margin": 0.0478,
+  "texture": 32.35,
+  "actual": [
+   7,
+   3
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0040",
+  "top": [
+   1,
+   8
+  ],
+  "combined": 0.6974,
+  "margin": 0.2007,
+  "texture": 44.71,
+  "actual": [
+   1,
+   8
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0041",
+  "top": [
+   1,
+   5
+  ],
+  "combined": 0.5944,
+  "margin": 0.1374,
+  "texture": 47.02,
+  "actual": [
+   1,
+   5
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0042",
+  "top": [
+   1,
+   10
+  ],
+  "combined": 0.632,
+  "margin": 0.632,
+  "texture": 48.59,
+  "actual": [
+   1,
+   10
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0043",
+  "top": [
+   6,
+   1
+  ],
+  "combined": 0.7881,
+  "margin": 0.3184,
+  "texture": 66.8,
+  "actual": [
+   6,
+   1
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0044",
+  "top": [
+   3,
+   6
+  ],
+  "combined": 0.5663,
+  "margin": 0.0023,
+  "texture": 42.89,
+  "actual": [
+   0,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0045",
+  "top": [
+   3,
+   5
+  ],
+  "combined": 0.8337,
+  "margin": 0.2639,
+  "texture": 62.13,
+  "actual": [
+   3,
+   5
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0046",
+  "top": [
+   7,
+   5
+  ],
+  "combined": 0.8283,
+  "margin": 0.3674,
+  "texture": 53.35,
+  "actual": [
+   7,
+   5
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0047",
+  "top": [
+   8,
+   7
+  ],
+  "combined": 0.6534,
+  "margin": 0.1398,
+  "texture": 57.91,
+  "actual": [
+   8,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0048",
+  "top": [
+   8,
+   5
+  ],
+  "combined": 0.6187,
+  "margin": 0.1272,
+  "texture": 58.6,
+  "actual": [
+   8,
+   5
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0049",
+  "top": [
+   6,
+   2
+  ],
+  "combined": 0.6921,
+  "margin": 0.2398,
+  "texture": 52.63,
+  "actual": [
+   6,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0050",
+  "top": [
+   7,
+   4
+  ],
+  "combined": 0.7002,
+  "margin": 0.1865,
+  "texture": 44.36,
+  "actual": [
+   7,
+   4
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0051",
+  "top": [
+   4,
+   9
+  ],
+  "combined": 0.7086,
+  "margin": 0.2954,
+  "texture": 54.41,
+  "actual": [
+   4,
+   9
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0052",
+  "top": [
+   4,
+   3
+  ],
+  "combined": 0.5896,
+  "margin": 0.0737,
+  "texture": 51.41,
+  "actual": [
+   4,
+   3
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0053",
+  "top": [
+   5,
+   6
+  ],
+  "combined": 0.6973,
+  "margin": 0.1796,
+  "texture": 44.87,
+  "actual": [
+   5,
+   6
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0054",
+  "top": [
+   0,
+   6
+  ],
+  "combined": 0.6479,
+  "margin": 0.1264,
+  "texture": 49.48,
+  "actual": [
+   0,
+   6
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0055",
+  "top": [
+   1,
+   4
+  ],
+  "combined": 0.6302,
+  "margin": 0.175,
+  "texture": 46.6,
+  "actual": [
+   1,
+   4
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0056",
+  "top": [
+   5,
+   8
+  ],
+  "combined": 0.6531,
+  "margin": 0.1222,
+  "texture": 55.67,
+  "actual": [
+   5,
+   8
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0057",
+  "top": [
+   3,
+   2
+  ],
+  "combined": 0.6404,
+  "margin": 0.1657,
+  "texture": 52.09,
+  "actual": [
+   3,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0058",
+  "top": [
+   1,
+   5
+  ],
+  "combined": 0.6248,
+  "margin": 0.012,
+  "texture": 56.37,
+  "actual": [
+   1,
+   5
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0059",
+  "top": [
+   5,
+   7
+  ],
+  "combined": 0.721,
+  "margin": 0.2066,
+  "texture": 46.75,
+  "actual": [
+   5,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0060",
+  "top": [
+   1,
+   3
+  ],
+  "combined": 0.5831,
+  "margin": 0.1312,
+  "texture": 46.44,
+  "actual": [
+   1,
+   3
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0061",
+  "top": [
+   1,
+   9
+  ],
+  "combined": 0.6603,
+  "margin": 0.2112,
+  "texture": 46.69,
+  "actual": [
+   1,
+   9
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0062",
+  "top": [
+   5,
+   10
+  ],
+  "combined": 0.6355,
+  "margin": 0.1497,
+  "texture": 49.11,
+  "actual": [
+   5,
+   10
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0063",
+  "top": [
+   1,
+   0
+  ],
+  "combined": 0.7071,
+  "margin": 0.176,
+  "texture": 53.71,
+  "actual": [
+   1,
+   0
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0064",
+  "top": [
+   2,
+   8
+  ],
+  "combined": 0.5695,
+  "margin": 0.0806,
+  "texture": 46.53,
+  "actual": [
+   2,
+   8
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0065",
+  "top": [
+   4,
+   10
+  ],
+  "combined": 0.5601,
+  "margin": 0.5601,
+  "texture": 48.17,
+  "actual": [
+   4,
+   10
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0066",
+  "top": [
+   6,
+   7
+  ],
+  "combined": 0.7418,
+  "margin": 0.2277,
+  "texture": 53.7,
+  "actual": [
+   6,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0067",
+  "top": [
+   0,
+   1
+  ],
+  "combined": 0.5897,
+  "margin": 0.0522,
+  "texture": 45.99,
+  "actual": [
+   0,
+   1
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0068",
+  "top": [
+   4,
+   4
+  ],
+  "combined": 0.7433,
+  "margin": 0.2223,
+  "texture": 57.57,
+  "actual": [
+   4,
+   4
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0069",
+  "top": [
+   7,
+   2
+  ],
+  "combined": 0.6875,
+  "margin": 0.1912,
+  "texture": 58.06,
+  "actual": [
+   7,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0070",
+  "top": [
+   5,
+   0
+  ],
+  "combined": 0.5922,
+  "margin": 0.0945,
+  "texture": 56.61,
+  "actual": [
+   5,
+   0
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0071",
+  "top": [
+   5,
+   0
+  ],
+  "combined": 0.5056,
+  "margin": 0.0089,
+  "texture": 57.85,
+  "actual": [
+   5,
+   0
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0072",
+  "top": [
+   2,
+   1
+  ],
+  "combined": 0.5948,
+  "margin": 0.1029,
+  "texture": 57.0,
+  "actual": [
+   2,
+   1
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0073",
+  "top": [
+   2,
+   9
+  ],
+  "combined": 0.6717,
+  "margin": 0.2263,
+  "texture": 49.92,
+  "actual": [
+   2,
+   9
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0074",
+  "top": [
+   3,
+   10
+  ],
+  "combined": 0.6388,
+  "margin": 0.6388,
+  "texture": 49.43,
+  "actual": [
+   3,
+   10
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0075",
+  "top": [
+   8,
+   4
+  ],
+  "combined": 0.7211,
+  "margin": 0.2441,
+  "texture": 51.86,
+  "actual": [
+   8,
+   4
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0076",
+  "top": [
+   3,
+   3
+  ],
+  "combined": 0.6002,
+  "margin": 0.1017,
+  "texture": 53.3,
+  "actual": [
+   3,
+   3
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0077",
+  "top": [
+   5,
+   5
+  ],
+  "combined": 0.72,
+  "margin": 0.2053,
+  "texture": 42.17,
+  "actual": [
+   5,
+   5
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0078",
+  "top": [
+   2,
+   5
+  ],
+  "combined": 0.7958,
+  "margin": 0.3891,
+  "texture": 64.56,
+  "actual": [
+   2,
+   5
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0079",
+  "top": [
+   8,
+   0
+  ],
+  "combined": 0.5757,
+  "margin": 0.1468,
+  "texture": 38.83,
+  "actual": [
+   8,
+   0
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0080",
+  "top": [
+   6,
+   9
+  ],
+  "combined": 0.6329,
+  "margin": 0.1629,
+  "texture": 53.51,
+  "actual": [
+   6,
+   9
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0081",
+  "top": [
+   1,
+   6
+  ],
+  "combined": 0.6223,
+  "margin": 0.1055,
+  "texture": 46.01,
+  "actual": [
+   1,
+   6
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0082",
+  "top": [
+   4,
+   7
+  ],
+  "combined": 0.7144,
+  "margin": 0.2843,
+  "texture": 54.06,
+  "actual": [
+   4,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0083",
+  "top": [
+   0,
+   7
+  ],
+  "combined": 0.6408,
+  "margin": 0.1672,
+  "texture": 48.62,
+  "actual": [
+   0,
+   7
+  ],
+  "label_source": "drop"
+ },
+ {
+  "sample": "pickup_0084",
+  "top": [
+   5,
+   1
+  ],
+  "combined": 0.6292,
+  "margin": 0.1252,
+  "texture": 48.95,
+  "actual": [
+   5,
+   1
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0085",
+  "top": [
+   4,
+   2
+  ],
+  "combined": 0.5684,
+  "margin": 0.1065,
+  "texture": 42.76,
+  "actual": [
+   4,
+   2
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0086",
+  "top": [
+   3,
+   0
+  ],
+  "combined": 0.5896,
+  "margin": 0.1209,
+  "texture": 46.5,
+  "actual": [
+   3,
+   0
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0087",
+  "top": [
+   4,
+   8
+  ],
+  "combined": 0.647,
+  "margin": 0.2097,
+  "texture": 49.19,
+  "actual": [
+   4,
+   8
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0088",
+  "top": [
+   8,
+   8
+  ],
+  "combined": 0.6408,
+  "margin": 0.6408,
+  "texture": 55.22,
+  "actual": [
+   8,
+   8
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0089",
+  "top": [
+   2,
+   10
+  ],
+  "combined": 0.5396,
+  "margin": 0.5396,
+  "texture": 44.19,
+  "actual": [
+   2,
+   10
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0090",
+  "top": [
+   1,
+   7
+  ],
+  "combined": 0.5593,
+  "margin": 0.1168,
+  "texture": 44.84,
+  "actual": [
+   1,
+   7
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0091",
+  "top": [
+   3,
+   1
+  ],
+  "combined": 0.4775,
+  "margin": 0.0418,
+  "texture": 45.77,
+  "actual": [
+   3,
+   1
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0092",
+  "top": [
+   6,
+   0
+  ],
+  "combined": 0.6314,
+  "margin": 0.1536,
+  "texture": 45.31,
+  "actual": [
+   6,
+   0
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0093",
+  "top": [
+   0,
+   9
+  ],
+  "combined": 0.5527,
+  "margin": 0.0314,
+  "texture": 44.01,
+  "actual": [
+   0,
+   9
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0094",
+  "top": [
+   2,
+   0
+  ],
+  "combined": 0.5203,
+  "margin": 0.0444,
+  "texture": 44.02,
+  "actual": [
+   2,
+   0
+  ],
+  "label_source": "diff"
+ },
+ {
+  "sample": "pickup_0095",
+  "top": [
+   5,
+   9
+  ],
+  "combined": 0.5748,
+  "margin": 0.1049,
+  "texture": 51.34,
+  "actual": [
+   5,
+   9
+  ],
+  "label_source": "drop"
+ }
+]

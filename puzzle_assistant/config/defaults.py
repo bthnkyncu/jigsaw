@@ -150,11 +150,20 @@ class Settings:
     # wrong-puzzle pieces land ~0.45. Measured separation: at 0.55 the live
     # captures keep ~87 % recall while ~87 % of cross-puzzle pieces are
     # rejected — the balance point for the ≥80 % predict / ~95 % accuracy goal.
-    min_combined_score: float = 0.55
+    # Lowered 0.55 -> 0.45 from a measured sweep on 84 ground-truth samples
+    # (captures_v3, physical-landing labels): recall 95.2 % -> 98.8 % with
+    # precision staying at 100 %. The ceiling (top candidate correct) on that
+    # set is 98.8 %, so 0.45 reaches it exactly. Scores below this were never
+    # correct, so going lower buys nothing.
+    min_combined_score: float = 0.45
     # Raised from 0.02 — at 0.02 ambiguous (near-tie) matches were accepted and
     # placed in the wrong cell. A wrong overlay is worse than none, so require
-    # a clearer lead over the runner-up.
-    min_margin: float = 0.05
+    # a clearer lead over the runner-up. Relaxed 0.05 -> 0.03 on the same
+    # measured sweep: it was the *binding* gate (lowering the score alone gained
+    # nothing), and 0.03 recovered 3 correct predictions with zero new errors.
+    # Flat/low-texture pieces still need flat_piece_min_margin, which is the
+    # guard that matters for repeated-pattern images.
+    min_margin: float = 0.03
 
     # Pieces flatter than this foreground grayscale std-dev are treated as
     # "single-colour-ish": their location is ambiguous (the colour repeats
