@@ -39,6 +39,12 @@ class BoardState:
             return self._filled[row][col]
         return False
 
+    def set_filled(self, row: int, col: int, filled: bool) -> None:
+        """Force a cell's state. For tests that need a specific board layout
+        without synthesising a full board image."""
+        if 0 <= row < self._grid.rows and 0 <= col < self._grid.cols:
+            self._filled[row][col] = filled
+
     def filled_count(self) -> int:
         return sum(v for row in self._filled for v in row)
 

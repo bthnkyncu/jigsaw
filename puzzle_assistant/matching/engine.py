@@ -187,6 +187,10 @@ def _match(
         scored.append((x, y, combined))
 
     scored.sort(key=lambda s: s[2], reverse=True)
+    # Keep the unfiltered field: the filters below remove rivals *by rule*, not
+    # because the appearance was unambiguous, so "no runner-up left" must not be
+    # read as "this piece can only go here".
+    raw_scored = list(scored)
 
     # Empty-cell filter. A dragged piece can only land in an empty cell, so
     # drop any candidate whose cell is already filled. On the repeated bouquet
@@ -224,6 +228,21 @@ def _match(
     best_x, best_y, best_combined = scored[0]
     second = scored[1][2] if len(scored) > 1 else 0.0
     margin = best_combined - second
+
+    # How strong was the best candidate the filters discarded? When a twin is
+    # removed because it is genuinely occupied, it scores about the same as the
+    # survivor, so this stays small — that is the case the empty-cell filter
+    # exists to rescue. But when board-state wrongly calls a filled cell empty,
+    # the *correct* candidates get filtered away and a far weaker one survives
+    # by elimination, inheriting a fabricated margin (nothing left to compare
+    # against). That is how one mislabelled cell became a sink that swallowed
+    # piece after piece live. A large lead here means the answer was decided by
+    # filtering, not by appearance, so it cannot be trusted.
+    kept = {(c[0], c[1]) for c in scored}
+    best_discarded = max(
+        (c[2] for c in raw_scored if (c[0], c[1]) not in kept), default=0.0
+    )
+    discarded_lead = best_discarded - best_combined
     top_row, top_col = _xy_to_cell(best_x, best_y, pw, ph, scale, target_map)
     top_cell = (top_row, top_col)
 
@@ -250,10 +269,28 @@ def _match(
     # the piece can only go to that cell, so accept it below the score gate.
     # Gated on second≈0 (not on margin), so a repeated-texture tie — which has a
     # real competing twin — can never trigger it.
+    #
+    # The runner-up here MUST come from the unfiltered field. Late in a game the
+    # empty-cell filter drops nearly every candidate, so one survivor is left and
+    # the filtered ``second`` collapses to 0 — which used to read as "unrivalled"
+    # and waved a weak match past the score gate. Worse, if board-state wrongly
+    # marks one filled cell empty, that cell is the sole survivor for *every*
+    # piece and they all funnel into it (observed live: 4+ pieces predicted onto
+    # [3,5] at combined ~0.42–0.48, each with margin == combined).
+    raw_second = max(
+        (c[2] for c in raw_scored if (c[0], c[1]) != (best_x, best_y)),
+        default=0.0,
+    )
     lone = (
-        second <= settings.lone_candidate_max_second
+        raw_second <= settings.lone_candidate_max_second
         and best_combined >= settings.lone_candidate_floor
     )
+
+    if discarded_lead > settings.filter_discard_max_lead:
+        return MatchResult(
+            cell=None, combined=best_combined, margin=margin,
+            rejected_reason="filter_decided", texture=texture, top_cell=top_cell,
+        )
 
     if best_combined < min_combined and not lone:
         return MatchResult(

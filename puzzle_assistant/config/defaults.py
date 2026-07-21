@@ -183,6 +183,23 @@ class Settings:
     lone_candidate_max_second: float = 0.12
     lone_candidate_floor: float = 0.42
 
+    # Filter-decided guard. The empty-cell and flat-edge filters only *remove*
+    # candidates, which is safe in principle — but a removal also erases the
+    # runner-up the margin is measured against, so a lone survivor inherits a
+    # fabricated margin and sails through both gates. Live this turned one
+    # mis-detected cell into a sink: several different pieces were all predicted
+    # onto [3,5] at combined 0.42-0.48 with margin == combined, because it was
+    # the only cell board-state believed was empty.
+    #
+    # When a twin is filtered out because it is genuinely occupied it scores
+    # about the same as the survivor (they are twins), so the lead stays near
+    # zero and the rescue the filter exists for still works. A large lead means
+    # the filters threw away something much better than what remained — the
+    # answer came from filtering rather than from appearance — so reject.
+    # Measured: the live sink discarded a candidate 0.44 ahead of the survivor,
+    # while legitimate twin removals sit well under 0.15.
+    filter_discard_max_lead: float = 0.15
+
     # Flat-edge border constraint. A puzzle piece with a *straight* (flat) edge
     # must sit on the corresponding board border (flat top → row 0, flat left →
     # col 0, etc.); a corner piece has two flat edges. We read the flat edges
