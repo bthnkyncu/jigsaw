@@ -78,3 +78,27 @@ class PickupRecorder:
         )
         plog.event("pickup_recorded", index=self._count, dir=str(sample_dir))
         self._count += 1
+
+    def record_eval_sample(
+        self,
+        piece_bgr: np.ndarray,
+        board_bgr: np.ndarray,
+        meta: dict[str, Any],
+    ) -> str:
+        """Save one ground-truth-labelled sample for offline evaluation.
+
+        Unlike ``record`` (pickup-time, prediction only), this is written after
+        the drop settles, so ``meta`` carries the *actual* landing cell observed
+        physically (board-state diff / drop point) — an appearance-independent
+        label. Returns the sample directory path.
+        """
+        sample_dir = self._out_dir / f"pickup_{self._count:04d}"
+        sample_dir.mkdir(parents=True, exist_ok=True)
+        cv2.imwrite(str(sample_dir / "piece.png"), piece_bgr)
+        cv2.imwrite(str(sample_dir / "board.png"), board_bgr)
+        (sample_dir / "meta.json").write_text(
+            json.dumps(meta, indent=2), encoding="utf-8"
+        )
+        plog.event("eval_sample_recorded", index=self._count, dir=str(sample_dir))
+        self._count += 1
+        return str(sample_dir)

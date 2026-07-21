@@ -8,7 +8,9 @@ Every iteration runs under the watchdog so a slow frame can't stall the loop.
 from __future__ import annotations
 
 import logging
+import os
 import time
+from pathlib import Path
 from typing import TYPE_CHECKING, Any
 
 from puzzle_assistant.calibration.board_detector import detect_board
@@ -66,6 +68,15 @@ class MainLoop:
         # the actual landing cell after the drop settles.
         self._eval_pending: dict[str, Any] | None = None
         self._eval_up_ts = 0.0
+        # Optional ground-truth dataset capture. Set PUZZLE_RECORD_DIR to a path
+        # to save (piece, board, actual-cell) per drop for offline evaluation.
+        # Off by default; observation only, never touches matching.
+        self._recorder = None
+        record_dir = os.environ.get("PUZZLE_RECORD_DIR")
+        if record_dir:
+            from puzzle_assistant.utils.recorder import PickupRecorder
+            self._recorder = PickupRecorder(Path(record_dir))
+            plog.event("record_enabled", dir=record_dir)
 
     def run(self, max_iterations: int | None = None) -> None:
         """Drive the loop. ``max_iterations`` is used by tests; ``None`` = forever."""
@@ -362,6 +373,25 @@ class MainLoop:
             texture=pend["texture"],
             rejected=pend["rejected"],
         )
+        # Ground-truth dataset capture: save the piece + reference board tagged
+        # with the ACTUAL landing cell (physical, appearance-independent label).
+        if self._recorder is not None and pend.get("piece_img") is not None:
+            self._recorder.record_eval_sample(
+                pend["piece_img"],
+                pend["board_img"],
+                {
+                    "grid": {"cols": grid.cols, "rows": grid.rows,
+                             "cell_w": grid.cell_w, "cell_h": grid.cell_h},
+                    "actual_cell": actual,
+                    "predicted_cell": pend["pred"],
+                    "top_cell": top,
+                    "actual_source": source,  # "diff" (reliable) or "drop" (fallback)
+                    "combined": pend["combined"],
+                    "margin": pend["margin"],
+                    "texture": pend["texture"],
+                    "rejected": pend["rejected"],
+                },
+            )
 
     def _drop_cell(self, sx: int, sy: int) -> list[int] | None:
         """The grid cell under the screen point ``(sx, sy)`` where a piece was
@@ -435,6 +465,9 @@ class MainLoop:
                 self._board_state.filled_cells() if self._board_state else frozenset()
             ),
             "drop": None,
+            # Images for offline dataset capture (only kept when recording).
+            "piece_img": result.piece.piece_full if self._recorder else None,
+            "board_img": tmap.board_image if self._recorder else None,
         }
         self._eval_up_ts = 0.0
         if match.cell is None:
