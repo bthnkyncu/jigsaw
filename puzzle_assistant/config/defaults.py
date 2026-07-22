@@ -52,10 +52,6 @@ class Settings:
     # puzzle) versus ~85 % on the countdown screen. 40 % sits in that gap. This
     # also rejects a half-assembled board, where the unfilled part still shows.
     init_view_max_bare_board: float = 0.40
-    # A board this bare is empty, so its rectangle can be trusted and kept for
-    # the moment the picture appears (when a pale puzzle merges with the desk
-    # and the contour breaks into pieces).
-    init_view_bare_board_min_for_bbox: float = 0.70
     init_view_wait_timeout_s: float = 20.0
     # Mean per-pixel diff between consecutive 128×96 board crops counted as
     # "stable". Picked from Puzzle_Game prototype (mean_diff < 1.5 there, but

@@ -46,9 +46,6 @@ class WatcherDecision:
     frame_diff: float = 0.0
     panel_missing: bool = False
     bare_board: float = 0.0
-    # Board rectangle measured while the board was still empty — more reliable
-    # than one derived from a picture that shares the desk's colour.
-    empty_board_bbox: "Bbox | None" = None
 
 
 class InitViewWatcher:
@@ -62,12 +59,6 @@ class InitViewWatcher:
         # Monotonic time at which all init-view criteria first held continuously.
         self._criteria_since: float | None = None
         self._prev_bbox: Bbox | None = None
-        # The board rectangle as seen while it was still empty. Before the
-        # pieces arrive the board is a plain light slab and detection nails it;
-        # once the picture is on it, a sky-blue puzzle merges with the desk-blue
-        # and the contour splits, so only part of the board is found. The empty
-        # measurement is the trustworthy one, so keep it.
-        self._empty_bbox: Bbox | None = None
 
     def reset(self) -> None:
         self._started_at = None
@@ -75,7 +66,6 @@ class InitViewWatcher:
         self._stable_count = 0
         self._criteria_since = None
         self._prev_bbox = None
-        self._empty_bbox = None
 
     def assess(
         self,
@@ -105,12 +95,6 @@ class InitViewWatcher:
         board_crop = _safe_crop(frame_bgr, board_bbox)
         variance = float(np.var(board_crop)) if board_crop.size else 0.0
         bare = _bare_board_fraction(board_crop, self._settings)
-        # Remember the biggest rectangle seen while the board was still bare.
-        bigger_than_known = self._empty_bbox is None or (
-            board_bbox.w * board_bbox.h > self._empty_bbox.w * self._empty_bbox.h
-        )
-        if bare >= self._settings.init_view_bare_board_min_for_bbox and bigger_than_known:
-            self._empty_bbox = board_bbox
 
         # Frame-to-frame diff on the board region. Resize both to a small
         # common shape so geometric drift in detect_board doesn't dominate.
@@ -190,7 +174,6 @@ class InitViewWatcher:
             frame_diff=frame_diff if frame_diff != float("inf") else -1.0,
             panel_missing=panel_missing,
             bare_board=bare,
-            empty_board_bbox=self._empty_bbox,
         )
         plog.event(
             "init_view_assess",

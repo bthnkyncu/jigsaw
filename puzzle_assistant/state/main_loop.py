@@ -246,22 +246,9 @@ class MainLoop:
                                panel_bbox.x : panel_bbox.x + panel_bbox.w]
             panel_signature = compute_signature(panel_crop)
 
-        decision = self._init_view_watcher.assess(frame, board_bbox, panel_bbox)
-        # Prefer the rectangle measured while the board was still bare. Once the
-        # picture is on it, a sky-blue puzzle merges with the desk-blue and the
-        # contour splits, so detection returns only part of the board — live it
-        # reported 360x271 for a board that is really 360x540, and the reference
-        # was built from half the puzzle. The empty board is unambiguous.
-        empty_bbox = decision.empty_board_bbox
-        if empty_bbox is not None and empty_bbox.h * empty_bbox.w > board_bbox.h * board_bbox.w:
-            plog.event(
-                "board_bbox_from_empty",
-                detected=[board_bbox.x, board_bbox.y, board_bbox.w, board_bbox.h],
-                used=[empty_bbox.x, empty_bbox.y, empty_bbox.w, empty_bbox.h],
-            )
-            board_bbox = empty_bbox
         board_crop = frame[board_bbox.y : board_bbox.y + board_bbox.h,
                            board_bbox.x : board_bbox.x + board_bbox.w]
+        decision = self._init_view_watcher.assess(frame, board_bbox, panel_bbox)
 
         # Primary path: init view captured.
         if decision.captured:
