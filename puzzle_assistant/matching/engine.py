@@ -239,9 +239,16 @@ def _match(
     # Empty-cell filter. A dragged piece can only land in an empty cell, so
     # drop any candidate whose cell is already filled. On the repeated bouquet
     # image a piece ties across distant positions; once one twin is placed,
-    # removing it leaves the true empty cell and the margin recovers. If every
-    # candidate maps to a filled cell the board-state is likely stale, so fall
-    # through unfiltered rather than fabricating a rejection.
+    # removing it leaves the true empty cell and the margin recovers.
+    #
+    # When *every* candidate is filled the piece's real cell never entered the
+    # top-N at all, so the best survivor is a cell we can see is occupied — a
+    # prediction with no chance of being right. This used to fall through
+    # unfiltered on the theory that the board-state might be stale; it isn't.
+    # Measured across 791 ground-truth pickups from nine games, board-state
+    # called the true (still empty) cell "filled" exactly zero times. The escape
+    # hatch guarded nothing and cost accuracy: late in a 200-piece game the same
+    # occupied cell was shown over and over for a corner piece.
     if board_state is not None:
         empty = [
             cand for cand in scored
@@ -249,8 +256,14 @@ def _match(
                 *_xy_to_cell(cand[0], cand[1], pw, ph, scale, target_map, pad)
             )
         ]
-        if empty:
-            scored = empty
+        if not empty:
+            best_x, best_y, best_combined = scored[0]
+            return MatchResult(
+                cell=None, combined=best_combined, margin=0.0,
+                rejected_reason="all_filled", texture=texture,
+                top_cell=_xy_to_cell(best_x, best_y, pw, ph, scale, target_map, pad),
+            )
+        scored = empty
 
     # Flat-edge border constraint. A piece with a straight (flat) silhouette
     # edge can only sit on the matching board border, so drop candidates that

@@ -1,8 +1,8 @@
-"""Border pieces — the reference must be padded so a template can overhang it.
+"""Border pieces — the reference must be padded, and filled cells never shown.
 
-Border cells were 86 % of everything the assistant failed to predict, right up
-to a 200-piece game where every single piece left on the desk at the end
-belonged to one.
+Both guards come out of the same 200-piece game. Border cells were 86 % of
+everything the assistant failed to predict, and the one prediction it did make
+late in that game pointed at a cell the player could see was already occupied.
 """
 
 from __future__ import annotations
@@ -14,6 +14,7 @@ import numpy as np
 
 from puzzle_assistant.config import load_settings
 from puzzle_assistant.matching.engine import match_piece
+from puzzle_assistant.piece.board_state import BoardState
 from puzzle_assistant.reference.target_map import build_from_init_view
 from puzzle_assistant.utils.coords import GridSpec
 
@@ -85,3 +86,33 @@ def test_padding_leaves_interior_pieces_alone() -> None:
         ].copy()
         assert _predict(piece, board, unpadded) == (r, c)
         assert _predict(piece, board, settings) == (r, c)
+
+
+def test_never_points_at_a_cell_known_to_be_filled() -> None:
+    """When every candidate is occupied, say nothing.
+
+    A piece can only land in an empty cell, so a prediction on a filled one is
+    wrong by construction. The engine used to fall through unfiltered here on
+    the theory that board-state might be stale — measured across 791
+    ground-truth pickups it never once called the true cell filled, and the
+    fall-through instead put a green box on an occupied cell again and again
+    late in a 200-piece game.
+    """
+    settings = load_settings(None)
+    board = _board()
+    r, c = 2, 3
+    piece = board[
+        int(r * CELL - CELL * 0.2):int((r + 1) * CELL + CELL * 0.2),
+        int(c * CELL - CELL * 0.2):int((c + 1) * CELL + CELL * 0.2),
+    ].copy()
+
+    state = BoardState(_grid())
+    assert _predict(piece, board, settings) == (r, c)
+
+    for rr in range(ROWS):
+        for cc in range(COLS):
+            state.set_filled(rr, cc, True)
+    tmap = build_from_init_view(board, _grid(), settings)
+    result = match_piece(piece, tmap, settings, state)
+    assert result.cell is None, "must not point at a cell known to be occupied"
+    assert result.rejected_reason == "all_filled"
