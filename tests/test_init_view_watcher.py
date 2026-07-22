@@ -29,8 +29,15 @@ def test_init_view_detected_on_full_image(fixtures_dir: Path) -> None:
     board = Bbox(525, 138, 744, 558)
     # The watcher requires several consecutive stable frames to fire — feed
     # the same frame repeatedly to simulate the ~2 second motionless init view.
+    # With no reference panel the decisive "board matches the thumbnail" check
+    # is unavailable, so the watcher demands proportionally more motionless
+    # frames before it will trust the board; feed that many.
+    needed = (
+        settings.init_view_stable_frame_count
+        * settings.init_view_no_panel_stable_multiplier
+    )
     decision = None
-    for _ in range(settings.init_view_stable_frame_count + 1):
+    for _ in range(needed + 1):
         decision = watcher.assess(img, board, panel_bbox=None)
     assert decision is not None
     assert decision.captured, f"init view not detected, variance={decision.variance}"
@@ -59,3 +66,32 @@ def test_timeout_after_window(fixtures_dir: Path) -> None:
     time.sleep(0.1)
     decision = watcher.assess(img, board, panel_bbox=None)
     assert decision.timed_out
+
+
+def test_bbox_change_resets_stability(fixtures_dir: Path) -> None:
+    """A moving board bbox must count as motion, not as a still frame.
+
+    While the pieces fly apart, ``detect_board`` reports a board that grows row
+    by row. The pixel test cannot see that — it resizes every crop to 128×96, so
+    a half board and a full board of the same picture both read as unchanged
+    (observed live: frame_diff 0.0 while the height went 540 → 271). Without
+    this reset the watcher captured its reference off a half-built board and the
+    whole game ran against a wrong target map.
+    """
+    settings = load_settings(None)
+    settings.init_view_settle_delay_s = 0.0
+    watcher = InitViewWatcher(settings)
+    img = _load_window_crop(fixtures_dir, "init_view_4")
+    full = Bbox(525, 138, 744, 558)
+    half = Bbox(525, 138, 744, 279)
+
+    needed = (
+        settings.init_view_stable_frame_count
+        * settings.init_view_no_panel_stable_multiplier
+    )
+    for _ in range(needed):
+        watcher.assess(img, full, panel_bbox=None)
+    # Board bbox suddenly halves — the run of stable frames must start over.
+    decision = watcher.assess(img, half, panel_bbox=None)
+    assert decision.stable_count == 0, "bbox change should reset the stable run"
+    assert not decision.captured, "must not capture on the frame the board jumped"

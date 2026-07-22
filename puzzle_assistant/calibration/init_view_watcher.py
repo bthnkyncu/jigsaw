@@ -56,12 +56,14 @@ class InitViewWatcher:
         self._stable_count = 0
         # Monotonic time at which all init-view criteria first held continuously.
         self._criteria_since: float | None = None
+        self._prev_bbox: Bbox | None = None
 
     def reset(self) -> None:
         self._started_at = None
         self._prev_board = None
         self._stable_count = 0
         self._criteria_since = None
+        self._prev_bbox = None
 
     def assess(
         self,
@@ -75,6 +77,18 @@ class InitViewWatcher:
         if self._started_at is None:
             self._started_at = now
         elapsed = now - self._started_at
+
+        # While the pieces fly apart, detect_board reports a board that grows
+        # row by row, so the bbox jumps between frames. The pixel-stability test
+        # can't see that — it resizes every crop to 128x96, so a half board and
+        # a full board of the same picture both read as "unchanged" (measured:
+        # frame_diff 0.0 while the height went 540 -> 271). Treat a bbox change
+        # as motion in its own right, otherwise a mid-animation frame can be
+        # captured as the reference.
+        if self._prev_bbox is not None and not _bbox_close(self._prev_bbox, board_bbox):
+            self._stable_count = 0
+            self._criteria_since = None
+        self._prev_bbox = board_bbox
 
         board_crop = _safe_crop(frame_bgr, board_bbox)
         variance = float(np.var(board_crop)) if board_crop.size else 0.0
@@ -114,12 +128,19 @@ class InitViewWatcher:
         # pieces is also stable and high-variance, but its histogram does NOT
         # match the reference panel (live runs showed corr~0.04 when scattered
         # vs corr~0.5 on the true init view).
-        stable_ok = self._stable_count >= self._settings.init_view_stable_frame_count
+        # The panel check is the decisive one, so losing it is dangerous: on a
+        # pale blue/white puzzle the thumbnail blends into the panel background,
+        # detection fails, and "no panel" used to mean "panel check passed" —
+        # leaving only stability, which a mid-scatter frame satisfies. We still
+        # can't demand a panel (some boards genuinely lack one), but without it
+        # we demand far more motionless frames before believing the board.
+        panel_missing = panel_bbox is None
+        need_stable = self._settings.init_view_stable_frame_count
+        if panel_missing:
+            need_stable *= self._settings.init_view_no_panel_stable_multiplier
+        stable_ok = self._stable_count >= need_stable
         variance_ok = variance >= self._settings.init_view_variance_min
-        panel_ok = (
-            panel_bbox is None
-            or panel_corr >= self._settings.init_view_panel_corr_min
-        )
+        panel_ok = panel_missing or panel_corr >= self._settings.init_view_panel_corr_min
         criteria_now = stable_ok and variance_ok and panel_ok
 
         # The puzzle fills in top-to-bottom over ~1s. Don't capture the instant
@@ -156,6 +177,7 @@ class InitViewWatcher:
             stable_count=self._stable_count,
             captured=criteria_ok,
             timed_out=timed_out,
+            panel_missing=panel_missing,
         )
         if criteria_ok or timed_out:
             self._started_at = None
@@ -163,6 +185,14 @@ class InitViewWatcher:
             self._prev_board = None
             self._criteria_since = None
         return decision
+
+
+def _bbox_close(a: Bbox, b: Bbox, tol: int = 6) -> bool:
+    """Same board region, allowing for a few pixels of detection jitter."""
+    return (
+        abs(a.x - b.x) <= tol and abs(a.y - b.y) <= tol
+        and abs(a.w - b.w) <= tol and abs(a.h - b.h) <= tol
+    )
 
 
 def _safe_crop(frame: np.ndarray, bbox: Bbox) -> np.ndarray:
