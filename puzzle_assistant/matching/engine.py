@@ -96,6 +96,19 @@ def _match(
         board = cv2.resize(
             board, None, fx=scale, fy=scale, interpolation=cv2.INTER_CUBIC
         )
+    # Let the piece hang off the board edge. A border piece's template spans
+    # ~1.5 cells (tabs included) but only ~1 cell of board is left beside it, so
+    # without a margin matchTemplate has to slide it inward and the correlation
+    # at its own cell collapses. See ``board_match_pad_cells``.
+    pad = round(
+        settings.board_match_pad_cells
+        * min(target_map.grid.cell_w, target_map.grid.cell_h)
+        * scale
+    )
+    if pad > 0:
+        board = cv2.copyMakeBorder(
+            board, pad, pad, pad, pad, cv2.BORDER_REPLICATE
+        )
     bh, bw = board.shape[:2]
 
     # Foreground mask + tight crop to the piece's real silhouette. If the mask
@@ -233,7 +246,7 @@ def _match(
         empty = [
             cand for cand in scored
             if not board_state.is_filled(
-                *_xy_to_cell(cand[0], cand[1], pw, ph, scale, target_map)
+                *_xy_to_cell(cand[0], cand[1], pw, ph, scale, target_map, pad)
             )
         ]
         if empty:
@@ -249,7 +262,7 @@ def _match(
         on_border = [
             cand for cand in scored
             if _on_border(
-                _xy_to_cell(cand[0], cand[1], pw, ph, scale, target_map),
+                _xy_to_cell(cand[0], cand[1], pw, ph, scale, target_map, pad),
                 flats, target_map,
             )
         ]
@@ -274,7 +287,7 @@ def _match(
         (c[2] for c in raw_scored if (c[0], c[1]) not in kept), default=0.0
     )
     discarded_lead = best_discarded - best_combined
-    top_row, top_col = _xy_to_cell(best_x, best_y, pw, ph, scale, target_map)
+    top_row, top_col = _xy_to_cell(best_x, best_y, pw, ph, scale, target_map, pad)
     top_cell = (top_row, top_col)
 
     min_combined = (
@@ -345,11 +358,16 @@ def _match(
 
 
 def _xy_to_cell(
-    x: int, y: int, pw: int, ph: int, scale: float, target_map: TargetMap
+    x: int, y: int, pw: int, ph: int, scale: float, target_map: TargetMap, pad: int = 0
 ) -> tuple[int, int]:
-    """Map a candidate's top-left (upscaled-board) pixel to ``(row, col)``."""
-    center_x = (x + pw / 2) / scale
-    center_y = (y + ph / 2) / scale
+    """Map a candidate's top-left (upscaled, padded-board) pixel to ``(row, col)``.
+
+    ``pad`` is the margin added around the board before matching; subtracting it
+    puts the candidate back in board coordinates. Getting this wrong shifts
+    every prediction by a fraction of a cell, so it is not optional.
+    """
+    center_x = (x + pw / 2 - pad) / scale
+    center_y = (y + ph / 2 - pad) / scale
     col = int(min(target_map.grid.cols - 1, max(0, center_x // target_map.grid.cell_w)))
     row = int(min(target_map.grid.rows - 1, max(0, center_y // target_map.grid.cell_h)))
     return row, col

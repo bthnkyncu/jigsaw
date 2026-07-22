@@ -268,6 +268,28 @@ class Settings:
     # repeated-texture pieces. 1.5 → cell ~63 px, keeping P95 latency under the
     # 200 ms budget while still adding the detail ORB needs.
     match_upscale_factor: float = 1.5
+    # Margin (in cells) added around the reference board before matching, filled
+    # by replicating the edge pixels.
+    #
+    # This is what capped border pieces. A piece's template is its whole
+    # silhouette — ~1.5 cells across once the tabs are included — so a piece
+    # belonging to a border cell needs to sit partly *outside* the board
+    # rectangle. matchTemplate cannot place a template past the image edge, so
+    # the best it can do is slide the piece inward: measured ~7 px, about 16 %
+    # of a cell. Compared against content that far off, the correlation at the
+    # piece's own cell collapses — 0.393 versus 0.538 for interior pieces — and
+    # in 34 % of border pickups some unrelated spot on the board outscored the
+    # right one (interior: 5 %).
+    #
+    # Padding makes the true position reachable. Measured on 1178
+    # ground-truth-labelled pickups the border peak recovers to 0.524 (interior
+    # is 0.538, so the gap all but closes) and interior pieces are untouched —
+    # identical scores, identical predictions. End to end that is border recall
+    # 67.1 % -> 80.4 %, and it improved in all eleven recorded games.
+    #
+    # 0.35 cells is enough to clear the widest tab; 0.6 measured identically, so
+    # the smaller pad is kept for speed.
+    board_match_pad_cells: float = 0.35
 
     # --- Matching (fallback quality) ---
     # Bumped in step with the primary gate for the ORB-as-bonus score scale.
