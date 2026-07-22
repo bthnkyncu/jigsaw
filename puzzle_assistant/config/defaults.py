@@ -60,11 +60,13 @@ class Settings:
     # Consecutive stable frames required to declare the init view captured.
     # At 20 FPS this is ~0.3s of motion-free board content.
     init_view_stable_frame_count: int = 6
-    # When the reference panel can't be found, the decisive "board matches the
-    # thumbnail" check is unavailable and only stability is left — which a frame
-    # mid-scatter can satisfy, producing a reference captured off a half-built
-    # board. Demand this many times more motionless frames in that case.
-    init_view_no_panel_stable_multiplier: int = 4
+    # Extra motionless frames demanded when the reference panel can't be found.
+    # Was 4 while stability was the only guard left in that case; the coverage
+    # test below now rejects the countdown, the bare board and a half-built
+    # board directly, so this stacked on top and simply made capture
+    # impossible — the assembled view is only shown for ~1.5 s and needs to be
+    # caught within it. Kept as a knob, but no longer a multiplier by default.
+    init_view_no_panel_stable_multiplier: int = 1
     # The assembled puzzle fills in top-to-bottom over ~1s, so the first frame
     # that looks "stable + matching" can still have unsettled bottom rows. Once
     # all criteria first hold we wait this long (criteria must keep holding)

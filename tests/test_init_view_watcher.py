@@ -126,3 +126,27 @@ def test_countdown_screen_is_not_captured(fixtures_dir: Path) -> None:
     assert not decision.captured, (
         f"countdown screen captured as init view (bare={decision.bare_board:.2f})"
     )
+
+
+def test_assembled_view_becomes_ready_promptly(fixtures_dir: Path) -> None:
+    """The assembled puzzle must be captured within the ~1.5 s it is on screen.
+
+    Guarding against a mid-scatter capture by demanding several times more
+    motionless frames *and* restarting the run on any bbox change looked safe,
+    but together they needed over two seconds of a perfectly still board — and
+    live the board still grows a little while it renders (360x271 -> 362x285).
+    The window was never caught and the assistant never became ready at all.
+    The coverage test is what actually rejects the countdown and the bare board,
+    so the timing guards must stay loose enough to catch the real view.
+    """
+    settings = load_settings(None)
+    settings.init_view_settle_delay_s = 0.0
+    watcher = InitViewWatcher(settings)
+    img = _load_window_crop(fixtures_dir, "init_view_4")
+    bbox = Bbox(525, 138, 744, 558)
+
+    budget = int(settings.target_fps * 1.5)  # frames available in that window
+    captured = any(
+        watcher.assess(img, bbox, panel_bbox=None).captured for _ in range(budget)
+    )
+    assert captured, "assembled view not captured within its on-screen window"

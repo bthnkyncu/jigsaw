@@ -172,6 +172,8 @@ class InitViewWatcher:
             elapsed_s=elapsed,
             stable_count=self._stable_count,
             frame_diff=frame_diff if frame_diff != float("inf") else -1.0,
+            panel_missing=panel_missing,
+            bare_board=bare,
         )
         plog.event(
             "init_view_assess",
@@ -204,11 +206,20 @@ def _bare_board_fraction(board_bgr: np.ndarray, settings: Settings) -> float:
     return float(cv2.inRange(hsv, low, high).mean()) / 255.0
 
 
-def _bbox_close(a: Bbox, b: Bbox, tol: int = 6) -> bool:
-    """Same board region, allowing for a few pixels of detection jitter."""
+def _bbox_close(a: Bbox, b: Bbox, tol: float = 0.25) -> bool:
+    """Roughly the same board region.
+
+    Tolerance is deliberately generous. A 6 px rule looked safer but killed
+    calibration outright: while the assembled puzzle is on screen the detected
+    board still breathes by tens of pixels, so the stability run reset every
+    time and the ~1.5 s window was never caught. Only a gross change — the board
+    growing or halving as pieces fly out — should count as motion here.
+    """
+    ref_w = max(a.w, b.w, 1)
+    ref_h = max(a.h, b.h, 1)
     return (
-        abs(a.x - b.x) <= tol and abs(a.y - b.y) <= tol
-        and abs(a.w - b.w) <= tol and abs(a.h - b.h) <= tol
+        abs(a.x - b.x) <= tol * ref_w and abs(a.y - b.y) <= tol * ref_h
+        and abs(a.w - b.w) <= tol * ref_w and abs(a.h - b.h) <= tol * ref_h
     )
 
 
