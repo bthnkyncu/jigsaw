@@ -1,0 +1,22 @@
+{
+  "grid": {
+    "cols": 11,
+    "rows": 9,
+    "cell_w": 49.09090909090909,
+    "cell_h": 45.111111111111114
+  },
+  "actual_cell": [
+    4,
+    1
+  ],
+  "predicted_cell": null,
+  "top_cell": [
+    2,
+    6
+  ],
+  "actual_source": "diff",
+  "combined": 0.482,
+  "margin": 0.044,
+  "texture": 61.1,
+  "rejected": "low_score"
+}
