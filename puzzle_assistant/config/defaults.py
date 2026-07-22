@@ -239,7 +239,13 @@ class Settings:
     # matcher failed to predict: 13 rescued, 0 errors.
     # Above this many empty cells the holes merge into multi-cell regions and
     # shape carries no information (measured 0 % correct above ~30 empty).
-    hole_shape_max_empty_cells: int = 12
+    #
+    # 12 was too tight and was leaving rescues on the table: a 200-piece game
+    # stalled with 13-16 holes open, just outside it. Re-swept over every
+    # unpredicted pickup in eleven recorded games, the safe plateau is 14-20
+    # (18 rescued, 0 wrong throughout) and the first error appears at 25, so 15
+    # sits inside it with room on both sides.
+    hole_shape_max_empty_cells: int = 15
     # A hole must fit this much better than the runner-up. Swept on the 23
     # endgame pickups appearance could not place: 0.15 fires 8, 0.10 fires 13,
     # 0.08 fires 14, 0.05 fires 16 — all with zero errors — and 0.03 fires 19
