@@ -150,3 +150,29 @@ def test_assembled_view_becomes_ready_promptly(fixtures_dir: Path) -> None:
         watcher.assess(img, bbox, panel_bbox=None).captured for _ in range(budget)
     )
     assert captured, "assembled view not captured within its on-screen window"
+
+
+def test_empty_board_rectangle_is_remembered(fixtures_dir: Path) -> None:
+    """Keep the board rectangle measured while the board was still bare.
+
+    A pale blue puzzle shares the desk's colour, so once the picture is on the
+    board the contour splits and detection returns only part of it — live it
+    reported 360x271 for a board that is really 360x540, and the reference was
+    built from half the puzzle. While the board is empty it is an unambiguous
+    light slab, so that measurement is the one to trust.
+    """
+    settings = load_settings(None)
+    watcher = InitViewWatcher(settings)
+
+    # Bare board first: light everywhere, full size.
+    bare_frame = np.full((700, 600, 3), (235, 228, 220), np.uint8)
+    full = Bbox(100, 60, 360, 540)
+    watcher.assess(bare_frame, full, panel_bbox=None)
+
+    # Now the picture appears but detection only finds the top half.
+    img = _load_window_crop(fixtures_dir, "init_view_4")
+    half = Bbox(100, 60, 360, 271)
+    decision = watcher.assess(img, half, panel_bbox=None)
+
+    assert decision.empty_board_bbox is not None
+    assert decision.empty_board_bbox.h == 540, "full board height must be remembered"
