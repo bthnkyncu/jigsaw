@@ -103,3 +103,34 @@ def test_occupied_twin_removal_still_works() -> None:
     result = match_piece(piece, target_map, settings, board_state)
     assert result.cell is not None, "legitimate twin removal must not be blocked"
     assert (result.cell.row, result.cell.col) == (1, 1)
+
+
+def test_empty_cell_search_needs_a_rival() -> None:
+    """The endgame empty-cell search must not decide without a runner-up.
+
+    Same sink as above, reached the other way: when the matcher gives up, the
+    search scores the piece against every still-open cell. If board-state leaves
+    exactly one cell open, the winner has nothing to beat and any piece is
+    "clearly" the best fit for it — so a single mis-read cell would swallow piece
+    after piece all over again.
+    """
+    settings = load_settings(None)
+    board = _board_with_weak_twin()
+    grid = _grid()
+    target_map = build_from_init_view(board, grid, settings)
+    piece = board[_CELL:2 * _CELL, _CELL:2 * _CELL].copy()
+
+    lone_open = BoardState(grid)
+    for row in range(_ROWS):
+        for col in range(_COLS):
+            lone_open.set_filled(row, col, (row, col) != (3, 3))
+    assert match_piece(piece, target_map, settings, lone_open).cell is None
+
+    # Two cells open, one of them the piece's own: now the comparison is real
+    # and the search is allowed to answer.
+    two_open = BoardState(grid)
+    for row in range(_ROWS):
+        for col in range(_COLS):
+            two_open.set_filled(row, col, (row, col) not in {(1, 1), (3, 3)})
+    result = match_piece(piece, target_map, settings, two_open)
+    assert result.cell is None or (result.cell.row, result.cell.col) == (1, 1)

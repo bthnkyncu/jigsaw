@@ -38,6 +38,8 @@ from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import CellAddress
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from puzzle_assistant.piece.board_state import BoardState
 
 _FG_THRESHOLD = 35.0
@@ -209,8 +211,7 @@ def _match(
     _p_kp, p_desc = orb.detectAndCompute(piece_gray, fg)
     bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
-    scored: list[tuple[int, int, float]] = []
-    for x, y, ccoeff_score in candidates:
+    def score_at(x: int, y: int, ccoeff_score: float) -> float:
         cr = 0.0
         if ccorr is not None and 0 <= y < ccorr.shape[0] and 0 <= x < ccorr.shape[1]:
             cr = float(ccorr[y, x])
@@ -227,8 +228,11 @@ def _match(
         # bonus when it genuinely fires (repeated-texture pieces — fur, petals),
         # so it can still break those ties without capping the common case.
         base = 0.60 * ccoeff_score + 0.25 * cr + 0.15 * color_score
-        combined = min(1.0, base + 0.15 * orb_score)
-        scored.append((x, y, combined))
+        return min(1.0, base + 0.15 * orb_score)
+
+    scored: list[tuple[int, int, float]] = [
+        (x, y, score_at(x, y, cc)) for x, y, cc in candidates
+    ]
 
     scored.sort(key=lambda s: s[2], reverse=True)
     # Keep the unfiltered field: the filters below remove rivals *by rule*, not
@@ -257,11 +261,15 @@ def _match(
             )
         ]
         if not empty:
-            best_x, best_y, best_combined = scored[0]
+            bx, by, bc = scored[0]
+            cell = _search_empty_cells(
+                ccoeff, score_at, board_state, target_map, settings,
+                pw, ph, scale, pad,
+            )
             return MatchResult(
-                cell=None, combined=best_combined, margin=0.0,
-                rejected_reason="all_filled", texture=texture,
-                top_cell=_xy_to_cell(best_x, best_y, pw, ph, scale, target_map, pad),
+                cell=cell, combined=bc, margin=0.0,
+                rejected_reason=None if cell else "all_filled", texture=texture,
+                top_cell=_xy_to_cell(bx, by, pw, ph, scale, target_map, pad),
             )
         scored = empty
 
@@ -343,22 +351,37 @@ def _match(
         and best_combined >= settings.lone_candidate_floor
     )
 
-    if discarded_lead > settings.filter_discard_max_lead:
+    def give_up(reason: str) -> MatchResult:
+        """Reject — unless the shortlist of still-open cells settles it.
+
+        The top-N peaks are taken over the *whole* board, so a piece whose cell
+        never made that shortlist cannot be recovered by any filter: the answer
+        simply is not in the set being filtered. Late in a game, though, only a
+        handful of cells are still open, and asking "of those, which does this
+        piece fit best?" is a different and much easier question. See
+        ``_search_empty_cells``.
+        """
+        cell = _search_empty_cells(
+            ccoeff, score_at, board_state, target_map, settings,
+            pw, ph, scale, pad,
+        )
+        if cell is not None:
+            return MatchResult(
+                cell=cell, combined=best_combined, margin=margin,
+                rejected_reason=None, texture=texture, top_cell=top_cell,
+            )
         return MatchResult(
             cell=None, combined=best_combined, margin=margin,
-            rejected_reason="filter_decided", texture=texture, top_cell=top_cell,
+            rejected_reason=reason, texture=texture, top_cell=top_cell,
         )
 
+    if discarded_lead > settings.filter_discard_max_lead:
+        return give_up("filter_decided")
+
     if best_combined < min_combined and not lone:
-        return MatchResult(
-            cell=None, combined=best_combined, margin=margin,
-            rejected_reason="low_score", texture=texture, top_cell=top_cell,
-        )
+        return give_up("low_score")
     if margin < min_margin:
-        return MatchResult(
-            cell=None, combined=best_combined, margin=margin,
-            rejected_reason="low_margin", texture=texture, top_cell=top_cell,
-        )
+        return give_up("low_margin")
 
     return MatchResult(
         cell=CellAddress(row=top_row, col=top_col),
@@ -368,6 +391,80 @@ def _match(
         texture=texture,
         top_cell=top_cell,
     )
+
+
+def _search_empty_cells(
+    ccoeff: np.ndarray,
+    score_at: "Callable[[int, int, float], float]",
+    board_state: "BoardState | None",
+    target_map: TargetMap,
+    settings: Settings,
+    pw: int,
+    ph: int,
+    scale: float,
+    pad: int,
+) -> CellAddress | None:
+    """Which of the still-open cells does the piece fit best?
+
+    The normal path takes the top-N correlation peaks over the whole board and
+    then removes the ones on filled cells. That cannot help a piece whose own
+    cell never made the shortlist — filtering only ever removes, so the answer
+    has to already be in the set. Late in a game the question can be turned
+    around: a dozen cells are still open, so score the piece at each of *them*
+    directly and see whether one wins clearly.
+
+    Measured only after the reference gained its padding (see
+    ``board_match_pad_cells``) — before that this rescued nothing at all (0 of
+    15 tries), because a border piece could not reach its own position in the
+    first place. With padding it puts the right cell first on 65 of 105 pickups
+    the matcher had given up on, and at the gates below it fires 17 times with
+    no errors, 9 of those beyond what the hole-shape rescue already caught.
+
+    It is not a re-ranker: it runs only where the answer was going to be "no
+    prediction", so it can add an overlay but never overturn one.
+    """
+    if board_state is None:
+        return None
+    grid = target_map.grid
+    empty = [
+        (r, c)
+        for r in range(grid.rows)
+        for c in range(grid.cols)
+        if not board_state.is_filled(r, c)
+    ]
+    if not empty or len(empty) > settings.empty_cell_search_max_cells:
+        return None
+
+    height, width = ccoeff.shape
+    # Half a cell of slack: the piece's silhouette centre is offset from its
+    # cell centre by however far its tabs stick out.
+    rx = int(grid.cell_w * scale * 0.45)
+    ry = int(grid.cell_h * scale * 0.45)
+    ranked: list[tuple[float, tuple[int, int]]] = []
+    for row, col in empty:
+        x0 = round((col + 0.5) * grid.cell_w * scale + pad - pw / 2)
+        y0 = round((row + 0.5) * grid.cell_h * scale + pad - ph / 2)
+        xa, xb = max(0, x0 - rx), min(width, x0 + rx + 1)
+        ya, yb = max(0, y0 - ry), min(height, y0 + ry + 1)
+        if xb <= xa or yb <= ya:
+            continue
+        window = ccoeff[ya:yb, xa:xb]
+        wy, wx = divmod(int(np.argmax(window)), window.shape[1])
+        x, y = xa + wx, ya + wy
+        ranked.append((score_at(x, y, float(window[wy, wx])), (row, col)))
+
+    # A margin needs something to measure against. With one open cell there is
+    # no rival, so every piece "wins" there by default — and if board-state has
+    # that one cell wrong, every piece funnels into it. That is the sink from
+    # ``tests/test_filter_sink.py``, reached by a different route. Requiring a
+    # real runner-up costs 2 of 17 measured rescues and closes it.
+    if len(ranked) < 2:
+        return None
+    ranked.sort(reverse=True)
+    best, cell = ranked[0]
+    if best - ranked[1][0] < settings.empty_cell_search_min_margin:
+        return None
+    return CellAddress(row=cell[0], col=cell[1])
 
 
 def _xy_to_cell(

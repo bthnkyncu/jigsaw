@@ -233,6 +233,16 @@ class Settings:
     # fraction of the piece size; a tab/blank bulges ~0.2–0.3, so 0.12 keeps a
     # wide safety gap and flat detection biases to false-negative (no harm).
     flat_edge_max_deviation: float = 0.12
+    # --- Endgame empty-cell search (engine._search_empty_cells) ---
+    # Runs only where the matcher was about to give up, and only once the board
+    # is nearly finished: score the piece against each still-open cell instead
+    # of against the top-N peaks of the whole board. Swept over every
+    # appearance-miss in twelve games, |empty| <= 12 with a margin of 0.12
+    # fires 17 times with zero errors; the first error appears at |empty| <= 15
+    # with a 0.10 margin, so this sits inside the clean plateau on both axes.
+    empty_cell_search_max_cells: int = 12
+    empty_cell_search_min_margin: float = 0.12
+
     # --- Endgame hole-shape rescue (matching/hole_shape.py) ---
     # Runs only when appearance produced NO prediction, so it can add an overlay
     # but never overturn a correct one. Measured on 43 recorded pickups the
