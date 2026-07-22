@@ -28,6 +28,7 @@ from puzzle_assistant.overlay.gui_overlay import GuiOverlay
 from puzzle_assistant.state.main_loop import MainLoop
 from puzzle_assistant.utils import dpi
 from puzzle_assistant.utils import logger as plog
+from puzzle_assistant.utils.coords import Bbox
 from puzzle_assistant.utils.platform import (
     Platform,
     make_mouse_hook,
@@ -379,6 +380,24 @@ class AssistantGUI:
 
     # ------------------------------ actions -------------------------------
 
+    def _own_window_bbox(self) -> "Bbox | None":
+        """This window's position on screen, for board detection to skip.
+
+        A grab of the game window includes anything drawn on top of it, and this
+        panel is exactly the kind of bright shape board detection hunts for — it
+        was being calibrated against as if it were the puzzle.
+        """
+        try:
+            self.root.update_idletasks()
+            if not self.root.winfo_viewable():
+                return None
+            return Bbox(
+                x=self.root.winfo_rootx(), y=self.root.winfo_rooty(),
+                w=self.root.winfo_width(), h=self.root.winfo_height(),
+            )
+        except Exception:
+            return None
+
     def _start(self) -> None:
         if self._thread is not None and self._thread.is_alive():
             return
@@ -393,7 +412,10 @@ class AssistantGUI:
         capture = make_window_capture(self._platform)
         hook = make_mouse_hook(self._platform)
         notifier = make_notifier(self._platform)
-        self._loop = MainLoop(self._settings, capture, hook, self._overlay, notifier)
+        self._loop = MainLoop(
+            self._settings, capture, hook, self._overlay, notifier,
+            self_window=self._own_window_bbox,
+        )
         self._thread = threading.Thread(
             target=self._loop.run, name="main-loop", daemon=True
         )

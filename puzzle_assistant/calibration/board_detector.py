@@ -34,8 +34,18 @@ MIN_BOARD_HEIGHT_RATIO = 0.30
 MIN_BOARD_HEIGHT_FLOOR_PX = 120
 
 
-def detect_board(frame_bgr: np.ndarray, settings: Settings) -> Bbox | None:
-    """Return the puzzle board bbox in *frame-local* coordinates, or ``None``."""
+def detect_board(
+    frame_bgr: np.ndarray, settings: Settings, exclude: Bbox | None = None
+) -> Bbox | None:
+    """Return the puzzle board bbox in *frame-local* coordinates, or ``None``.
+
+    ``exclude`` blanks a region before contours are found. The assistant's own
+    window is the reason: it is not part of the game, but a screen grab of the
+    game window includes whatever is drawn on top of it, and this GUI is a
+    bright rounded panel on a dark background — exactly what "largest non-desk
+    contour" is looking for. It was picked as the board and the whole game then
+    ran against a reference made of the assistant's own buttons.
+    """
 
     if frame_bgr.size == 0 or frame_bgr.ndim != 3:
         return None
@@ -50,6 +60,13 @@ def detect_board(frame_bgr: np.ndarray, settings: Settings) -> Bbox | None:
 
     desk_mask = _desk_background_mask(work, settings)
     fg_mask = cv2.bitwise_not(desk_mask)
+    if exclude is not None:
+        # Treat the excluded rectangle as background so no contour forms there.
+        ex0, ey0 = max(0, exclude.x - work_x0), max(0, exclude.y - work_y0)
+        ex1 = min(work.shape[1], exclude.x + exclude.w - work_x0)
+        ey1 = min(work.shape[0], exclude.y + exclude.h - work_y0)
+        if ex1 > ex0 and ey1 > ey0:
+            fg_mask[ey0:ey1, ex0:ex1] = 0
 
     contours, _ = cv2.findContours(fg_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
     if not contours:

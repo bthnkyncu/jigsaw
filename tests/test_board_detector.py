@@ -83,3 +83,28 @@ def test_board_detect_orientation(
     assert bbox is not None, f"board not detected in {name} (orientation gate?)"
     aspect = bbox.w / bbox.h
     assert min_aspect <= aspect <= max_aspect, f"{name}: aspect {aspect:.2f} out of range"
+
+
+def test_exclusion_region_is_not_detected_as_board() -> None:
+    """A window drawn over the game must not be mistaken for the board.
+
+    The assistant's own GUI is a bright rounded panel on a dark background —
+    precisely what "largest non-desk contour" looks for. A screen grab of the
+    game window includes it, so it was picked as the board and the whole game
+    calibrated against a reference made of the assistant's own buttons.
+    """
+    import numpy as np
+
+    from puzzle_assistant.utils.coords import Bbox
+
+    settings = load_settings(None)
+    desk = (210, 174, 150)
+    frame = np.full((900, 1400, 3), desk, np.uint8)
+    # The assistant's window: a big bright panel on the left.
+    panel = Bbox(x=60, y=80, w=500, h=600)
+    frame[panel.y:panel.y + panel.h, panel.x:panel.x + panel.w] = (40, 45, 40)
+
+    assert detect_board(frame, settings) is not None, "panel is found without exclusion"
+    assert detect_board(frame, settings, exclude=panel) is None, (
+        "excluded panel must not be reported as the board"
+    )

@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+from collections.abc import Callable
 from dataclasses import replace
 from pathlib import Path
 from typing import TYPE_CHECKING, Any
@@ -50,12 +51,18 @@ class MainLoop:
         mouse_hook: "MouseHookInterface",
         overlay: "OverlayInterface",
         notifier: "NotifierInterface",
+        self_window: "Callable[[], Bbox | None] | None" = None,
     ) -> None:
         self._settings = settings
         self._capture = capture
         self._mouse = mouse_hook
         self._overlay = overlay
         self._notifier = notifier
+        # Where the assistant's own window sits, in screen coords. A grab of the
+        # game window includes anything drawn over it, and this GUI is a bright
+        # panel — board detection picked it as the puzzle and calibrated off the
+        # assistant's own buttons. Excluded from detection instead.
+        self._self_window = self_window
         self._ctx = sm.Context()
         self._frame_count = 0
         self._handle: int | None = None
@@ -122,6 +129,16 @@ class MainLoop:
         }
 
     # ------------------------------ private -------------------------------
+
+    def _self_exclusion(self) -> "Bbox | None":
+        """The assistant's own window in game-window-local coordinates."""
+        if self._self_window is None:
+            return None
+        own = self._self_window()
+        wb = self._ctx.artifacts.window_bbox
+        if own is None or wb is None:
+            return None
+        return Bbox(x=own.x - wb.x, y=own.y - wb.y, w=own.w, h=own.h)
 
     def _tick(self) -> None:
         try:
@@ -214,7 +231,7 @@ class MainLoop:
         return self._capture.capture(bbox)
 
     def _try_calibrate(self, frame: Any) -> None:
-        board_bbox = detect_board(frame, self._settings)
+        board_bbox = detect_board(frame, self._settings, exclude=self._self_exclusion())
         if board_bbox is None:
             plog.event(
                 "calibrate_no_board",
@@ -299,7 +316,7 @@ class MainLoop:
         if now - self._last_board_bbox_check_ts < self._settings.board_bbox_check_interval_s:
             return
         self._last_board_bbox_check_ts = now
-        bb_now = detect_board(frame, self._settings)
+        bb_now = detect_board(frame, self._settings, exclude=self._self_exclusion())
         old = self._ctx.artifacts.board_bbox
         if bb_now is None or old is None:
             return
