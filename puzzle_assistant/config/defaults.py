@@ -241,17 +241,33 @@ class Settings:
     # shape carries no information (measured 0 % correct above ~30 empty).
     #
     # 12 was too tight and was leaving rescues on the table: a 200-piece game
-    # stalled with 13-16 holes open, just outside it. Re-swept over every
-    # unpredicted pickup in eleven recorded games, the safe plateau is 14-20
-    # (18 rescued, 0 wrong throughout) and the first error appears at 25, so 15
-    # sits inside it with room on both sides.
+    # stalled with 13-16 holes open, just outside it. 15 lets that endgame be
+    # considered at all. Precision is governed by ``hole_shape_min_gap``, not by
+    # this cap — at the gap now in force, 12 / 14 / 15 all rescue the same 16
+    # pickups with no errors.
     hole_shape_max_empty_cells: int = 15
-    # A hole must fit this much better than the runner-up. Swept on the 23
-    # endgame pickups appearance could not place: 0.15 fires 8, 0.10 fires 13,
-    # 0.08 fires 14, 0.05 fires 16 — all with zero errors — and 0.03 fires 19
-    # but gets 2 of them wrong. So the error onset sits between 0.05 and 0.03,
-    # and 0.05 is the most that can be taken for free.
-    hole_shape_min_gap: float = 0.05
+    # A hole must fit this much better than the runner-up.
+    #
+    # 0.05 looked free for a long time — zero errors over every game recorded up
+    # to that point — and then a leaf-and-water-droplet puzzle broke it. Every
+    # cell of that image looks like every other, so the player was left with a
+    # long run of *adjacent* holes along the bottom row, and adjacent holes merge
+    # into one region whose outline inside any single cell is no longer a piece
+    # silhouette. Shape then picks between neighbours almost at random: the
+    # rescue supplied all four of that game's wrong overlays.
+    #
+    # Re-swept over every appearance-miss in twelve games, the one surviving
+    # error is stubborn — no cap and no absolute-IoU floor removes it, only a
+    # wider gap does. 0.12 is the first value that reaches zero errors, at a
+    # real cost: 24 rescues -> 16. Taken deliberately, because a wrong overlay is
+    # worse than none.
+    #
+    # Merging adjacent holes was the obvious alternative and it was measured:
+    # keeping only holes with four filled neighbours makes it far worse (11-15
+    # errors), because the true cell is often *in* the merged region and
+    # dropping it lets a wrong isolated hole win by elimination — the same
+    # filter-decides trap as [[filter-decided-sink]].
+    hole_shape_min_gap: float = 0.12
     # Alignment search radius, in board pixels. Not cosmetic: without it the
     # same rule made 2 errors at gap 0.05, with it none.
     hole_shape_align_radius: int = 8
