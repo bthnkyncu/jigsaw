@@ -43,6 +43,15 @@ class Settings:
     # panel. On the true init view this is ~0.5; with scattered pieces it drops
     # to ~0.04. 0.30 cleanly separates the two (live-run measured).
     init_view_panel_corr_min: float = 0.30
+    # The init view is the *assembled* puzzle, so the board must be covered in
+    # picture — not showing through. Before the game starts it displays a
+    # countdown banner over an otherwise bare board, which is motionless and
+    # passes every other test; that screen got captured as the reference and the
+    # whole game ran against it. Measured bare-board share: 0.4-10.3 % on the
+    # references that were captured correctly (26.6 % on the hardest pale-blue
+    # puzzle) versus ~85 % on the countdown screen. 40 % sits in that gap. This
+    # also rejects a half-assembled board, where the unfilled part still shows.
+    init_view_max_bare_board: float = 0.40
     init_view_wait_timeout_s: float = 20.0
     # Mean per-pixel diff between consecutive 128×96 board crops counted as
     # "stable". Picked from Puzzle_Game prototype (mean_diff < 1.5 there, but

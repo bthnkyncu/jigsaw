@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 
 import cv2
+import numpy as np
 
 from puzzle_assistant.calibration.init_view_watcher import InitViewWatcher
 from puzzle_assistant.config import load_settings
@@ -95,3 +96,33 @@ def test_bbox_change_resets_stability(fixtures_dir: Path) -> None:
     decision = watcher.assess(img, half, panel_bbox=None)
     assert decision.stable_count == 0, "bbox change should reset the stable run"
     assert not decision.captured, "must not capture on the frame the board jumped"
+
+
+def test_countdown_screen_is_not_captured(fixtures_dir: Path) -> None:
+    """The pre-game countdown must not be taken for the assembled puzzle.
+
+    Before a game starts the board shows a banner over an otherwise bare
+    surface. It is motionless and has enough variance from the banner, so every
+    other criterion passes and it was captured as the reference — the whole game
+    then matched against a picture of a countdown. The assembled puzzle covers
+    the board; this screen does not.
+    """
+    settings = load_settings(None)
+    settings.init_view_settle_delay_s = 0.0
+    watcher = InitViewWatcher(settings)
+
+    # Bare board with a bright banner across the middle, as the game draws it.
+    board = np.full((540, 360, 3), (235, 225, 215), np.uint8)
+    board[230:300, 30:330] = (40, 200, 245)
+    frame = np.zeros((700, 600, 3), np.uint8)
+    frame[60:600, 100:460] = board
+    bbox = Bbox(100, 60, 360, 540)
+
+    decision = None
+    for _ in range(settings.init_view_stable_frame_count
+                   * settings.init_view_no_panel_stable_multiplier + 5):
+        decision = watcher.assess(frame, bbox, panel_bbox=None)
+    assert decision is not None
+    assert not decision.captured, (
+        f"countdown screen captured as init view (bare={decision.bare_board:.2f})"
+    )

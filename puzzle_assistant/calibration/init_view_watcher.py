@@ -44,6 +44,8 @@ class WatcherDecision:
     elapsed_s: float
     stable_count: int = 0
     frame_diff: float = 0.0
+    panel_missing: bool = False
+    bare_board: float = 0.0
 
 
 class InitViewWatcher:
@@ -92,6 +94,7 @@ class InitViewWatcher:
 
         board_crop = _safe_crop(frame_bgr, board_bbox)
         variance = float(np.var(board_crop)) if board_crop.size else 0.0
+        bare = _bare_board_fraction(board_crop, self._settings)
 
         # Frame-to-frame diff on the board region. Resize both to a small
         # common shape so geometric drift in detect_board doesn't dominate.
@@ -140,8 +143,11 @@ class InitViewWatcher:
             need_stable *= self._settings.init_view_no_panel_stable_multiplier
         stable_ok = self._stable_count >= need_stable
         variance_ok = variance >= self._settings.init_view_variance_min
+        # The assembled puzzle covers the board; a countdown screen or a
+        # half-built board still shows bare board through.
+        covered_ok = bare <= self._settings.init_view_max_bare_board
         panel_ok = panel_missing or panel_corr >= self._settings.init_view_panel_corr_min
-        criteria_now = stable_ok and variance_ok and panel_ok
+        criteria_now = stable_ok and variance_ok and panel_ok and covered_ok
 
         # The puzzle fills in top-to-bottom over ~1s. Don't capture the instant
         # the criteria first hold (bottom rows may still be settling) — require
@@ -178,6 +184,7 @@ class InitViewWatcher:
             captured=criteria_ok,
             timed_out=timed_out,
             panel_missing=panel_missing,
+            bare_board=round(bare, 3),
         )
         if criteria_ok or timed_out:
             self._started_at = None
@@ -185,6 +192,16 @@ class InitViewWatcher:
             self._prev_board = None
             self._criteria_since = None
         return decision
+
+
+def _bare_board_fraction(board_bgr: np.ndarray, settings: Settings) -> float:
+    """Share of the board still showing its own surface rather than picture."""
+    if board_bgr.size == 0:
+        return 1.0
+    hsv = cv2.cvtColor(board_bgr, cv2.COLOR_BGR2HSV)
+    low = np.array(settings.board_light_hsv_low, dtype=np.uint8)
+    high = np.array(settings.board_light_hsv_high, dtype=np.uint8)
+    return float(cv2.inRange(hsv, low, high).mean()) / 255.0
 
 
 def _bbox_close(a: Bbox, b: Bbox, tol: int = 6) -> bool:
