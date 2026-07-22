@@ -422,6 +422,11 @@ class MainLoop:
                     "margin": pend["margin"],
                     "texture": pend["texture"],
                     "rejected": pend["rejected"],
+                    # Whether the endgame hole-shape rescue supplied this cell.
+                    # Without it a recorded rescue is indistinguishable from an
+                    # ordinary match offline, so its live accuracy could only be
+                    # read off the logs and never re-measured from the captures.
+                    "shape_rescued": pend.get("shape_rescued", False),
                 },
             )
 
