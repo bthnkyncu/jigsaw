@@ -154,7 +154,20 @@ def _grid_from_count(
             # contrast dominates, but when two near-count factorisations score
             # alike this nudges toward the one matching the stated total.
             closeness = abs(total - target) / target
-            score = contrast - _COUNT_CLOSENESS_W * closeness
+            # Squareness. A jigsaw cell is near-square, so an oblong candidate is
+            # almost certainly a mis-read of the periodicity. On a pale, low
+            # contrast image (a sea-and-sky photo) the cut lines barely register,
+            # the contrast term goes noisy, and an oblong factorisation can win:
+            # a 360x540 board came out 15x7 (cell 51x36, aspect 1.43) where the
+            # true grid was 8x12 (45x45, aspect 1.00). The aspect gate alone
+            # cannot fix that — it must stay loose enough for genuinely oblong
+            # boards — so pay a price proportional to how far from square it is.
+            aspect = max(cell_w / cell_h, cell_h / cell_w)
+            score = (
+                contrast
+                - _COUNT_CLOSENESS_W * closeness
+                - settings.grid_squareness_weight * (aspect - 1.0)
+            )
             if best is None or score > best[0]:
                 best = (score, rows, cols)
 

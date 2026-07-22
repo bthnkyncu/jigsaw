@@ -74,6 +74,11 @@ class Settings:
     grid_min_cell_px: float = 24.0
     grid_max_cell_px: float = 230.0
     grid_cell_aspect_max: float = 1.5
+    # How hard to penalise non-square cells when scoring candidate grids. The
+    # aspect gate above has to stay loose (some boards really are oblong), so
+    # squareness enters as a cost instead: a jigsaw cell is near-square, and an
+    # oblong candidate winning means the cut-line signal was too weak to trust.
+    grid_squareness_weight: float = 0.5
     grid_max_total_pieces: int = 520
     # Optional anchor: the piece count the user picked in the game (entered in
     # the GUI before "Başlat"). When set, grid detection only considers

@@ -246,6 +246,10 @@ class MainLoop:
                     board_bbox.w, board_bbox.h, self._settings
                 )
             if grid is not None:
+                # Everything downstream is judged against this one image, so when
+                # a game goes wrong the first question is always "what did it
+                # actually capture?". Keep the frame it calibrated from.
+                _dump_reference(board_crop, grid)
                 tmap = build_from_init_view(board_crop, grid, self._settings)
                 sm.on_calibrated_primary(
                     self._ctx, board_bbox, grid, tmap, panel_bbox, panel_signature
@@ -542,3 +546,26 @@ class MainLoop:
         )
         self._ctx.last_tracking_target = target_screen
         self._overlay.show(target_screen)
+
+
+def _dump_reference(board_crop: Any, grid: Any) -> None:
+    """Write the captured init view to ``logs/`` with its grid drawn on it."""
+    try:
+        import cv2
+        Path("logs").mkdir(parents=True, exist_ok=True)
+        cv2.imwrite("logs/init_view_captured.png", board_crop)
+        marked = board_crop.copy()
+        h, w = marked.shape[:2]
+        for c in range(1, grid.cols):
+            x = round(c * w / grid.cols)
+            cv2.line(marked, (x, 0), (x, h), (0, 255, 0), 1)
+        for r in range(1, grid.rows):
+            y = round(r * h / grid.rows)
+            cv2.line(marked, (0, y), (w, y), (0, 255, 0), 1)
+        cv2.imwrite("logs/init_view_grid.png", marked)
+        plog.event(
+            "reference_dumped", rows=grid.rows, cols=grid.cols,
+            path="logs/init_view_captured.png",
+        )
+    except Exception as exc:  # diagnostics must never break calibration
+        plog.event("reference_dump_failed", level=logging.WARNING, error=str(exc))
