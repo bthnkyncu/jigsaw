@@ -243,6 +243,35 @@ class Settings:
     empty_cell_search_max_cells: int = 12
     empty_cell_search_min_margin: float = 0.12
 
+    # --- Endgame joint assignment (matching/assignment.py) ---
+    # Only worth solving when few cells are left; measured stuck endgames ran to
+    # 12 pieces, so this leaves a little room above that.
+    assignment_max_cells: int = 16
+    # The buffer must cover this fraction of the open cells before the "each
+    # cell takes one piece" constraint says anything. Measured in a full live
+    # simulation, the buffer normally holds ~3 pieces against ~22 open cells
+    # (coverage 0.19) and the joint solution is then no better than per-piece
+    # scoring — 18 correct out of 67 versus 16. The constraint only bites when
+    # the player is genuinely stuck and every remaining piece is one the matcher
+    # could not place, which is where coverage approaches 1.
+    assignment_min_coverage: float = 0.6
+    # Regret floor: how much total score the solution must lose if this piece is
+    # denied its cell. Swept over 68 piece-decisions reconstructed from nine
+    # stuck endgames — correct decisions have median regret 0.116, wrong ones
+    # 0.023 (p90 0.066). 0.30 is the first value with zero errors. Lower is not
+    # available: at 0.10 the full live simulation fires three times and gets all
+    # three wrong.
+    assignment_min_regret: float = 0.30
+    assignment_buffer_max: int = 14
+    # Pickups after which an unplaced piece is forgotten. It only guards against
+    # a piece that was placed without the matcher noticing; the buffer is
+    # normally kept correct by dropping a piece as soon as it is matched.
+    assignment_forget_after: int = 60
+    # Normalised-correlation floor for "this is the same piece again". Pieces of
+    # the same puzzle look alike, so this has to be high; the cost of a false
+    # match is holding one piece twice, which the solver cannot express.
+    assignment_same_piece_min_corr: float = 0.80
+
     # --- Endgame hole-shape rescue (matching/hole_shape.py) ---
     # Runs only when appearance produced NO prediction, so it can add an overlay
     # but never overturn a correct one. Measured on 43 recorded pickups the

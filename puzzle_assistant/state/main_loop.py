@@ -27,7 +27,8 @@ from puzzle_assistant.calibration.reference_panel import (
     detect_reference_panel,
 )
 from puzzle_assistant.config import Settings
-from puzzle_assistant.matching.engine import _foreground_mask, match_piece
+from puzzle_assistant.matching.assignment import UnplacedPieces, assign_cell
+from puzzle_assistant.matching.engine import _foreground_mask, match_piece, prepare
 from puzzle_assistant.matching.hole_shape import rescue_by_hole_shape
 from puzzle_assistant.piece.board_state import BoardState
 from puzzle_assistant.piece.group_detection import classify as classify_piece
@@ -73,6 +74,9 @@ class MainLoop:
         self._board_state: BoardState | None = None
         self._last_board_state_ts = 0.0
         self._last_board_bbox_check_ts = 0.0
+        # Pieces the matcher could not place. Held so the endgame can solve them
+        # together — see puzzle_assistant/matching/assignment.py.
+        self._unplaced = UnplacedPieces(settings)
         # Self-supervised eval: prediction captured at pickup, resolved against
         # the actual landing cell after the drop settles.
         self._eval_pending: dict[str, Any] | None = None
@@ -163,6 +167,9 @@ class MainLoop:
 
             if self._ctx.state == sm.State.WAIT_FOR_NEW_PUZZLE:
                 self._board_state = None
+                # Held pieces carry scoring state tied to the current reference,
+                # and a new puzzle invalidates both the reference and the pieces.
+                self._unplaced.clear()
                 self._try_calibrate(frame)
             elif self._ctx.state in (sm.State.READY, sm.State.TRACKING):
                 self._monitor_panel(frame)
@@ -427,6 +434,9 @@ class MainLoop:
                     # ordinary match offline, so its live accuracy could only be
                     # read off the logs and never re-measured from the captures.
                     "shape_rescued": pend.get("shape_rescued", False),
+                    # Same reasoning for the endgame joint assignment: without
+                    # this its live accuracy could only be read off the logs.
+                    "assign_rescued": pend.get("assign_rescued", False),
                 },
             )
 
@@ -467,6 +477,22 @@ class MainLoop:
                     self._eval_up_ts = time.monotonic()
                     self._eval_pending["drop"] = self._drop_cell(evt.x, evt.y)
 
+    def _assign_from_buffer(self, index: int) -> Any:
+        """Solve the held pieces against the open cells; cell for ``index``."""
+        tmap = self._ctx.artifacts.target_map
+        if tmap is None or self._board_state is None or len(self._unplaced) < 2:
+            return None
+        grid = tmap.grid
+        open_cells = [
+            (r, c)
+            for r in range(grid.rows)
+            for c in range(grid.cols)
+            if not self._board_state.is_filled(r, c)
+        ]
+        return assign_cell(
+            self._unplaced.prepared(), index, open_cells, tmap, self._settings
+        )
+
     def _try_pickup_and_match(self, frame: Any, sx: int, sy: int) -> None:
         window_bbox = self._ctx.artifacts.window_bbox
         grid = self._ctx.artifacts.grid
@@ -492,9 +518,17 @@ class MainLoop:
         # wants the full piece silhouette (with background) — it computes its
         # own foreground mask. The eroded core would discard the tab shape that
         # helps disambiguate position.
+        # Prepared once and shared: the matcher needs it, and so does the
+        # endgame assignment below. Building it twice would add ~380 ms to a
+        # pickup on a 200-piece board.
+        prep = prepare(
+            result.piece.piece_full, tmap, self._settings,
+            clipped_sides=result.piece.clipped_sides,
+        )
         match = match_piece(
             result.piece.piece_full, tmap, self._settings, self._board_state,
             clipped_sides=result.piece.clipped_sides,
+            prepared=None if isinstance(prep, str) else prep,
         )
         # Endgame rescue. Appearance stalls on the last few pieces, but the holes
         # left on the live board are shaped like the pieces that fill them. Only
@@ -517,6 +551,28 @@ class MainLoop:
                 match = replace(match, cell=cell, rejected_reason=None)
                 shape_rescued = True
 
+        # Endgame joint assignment. Every open cell takes exactly one piece, so
+        # once the player is stuck — the pieces still in hand account for most
+        # of the holes left — the pieces can be solved together, and one can be
+        # placed because every *other* piece fits its cell better. Like the
+        # rescues above it only runs where there was going to be no prediction.
+        self._unplaced.tick()
+        assign_rescued = False
+        if match.cell is None:
+            if not isinstance(prep, str):
+                index = self._unplaced.remember(result.piece.piece_full, prep)
+                cell = self._assign_from_buffer(index)
+                if cell is not None:
+                    plog.event(
+                        "assignment_rescue", cell=[cell.row, cell.col],
+                        after=match.rejected_reason, held=len(self._unplaced),
+                    )
+                    match = replace(match, cell=cell, rejected_reason=None)
+                    assign_rescued = True
+        else:
+            # Matched, so it is about to be placed and is no longer waiting.
+            self._unplaced.forget(result.piece.piece_full)
+
         # Capture the prediction for self-supervised eval (resolved on drop).
         self._eval_pending = {
             "pred": [match.cell.row, match.cell.col] if match.cell else None,
@@ -526,6 +582,7 @@ class MainLoop:
             "texture": round(match.texture, 1),
             "rejected": match.rejected_reason,
             "shape_rescued": shape_rescued,
+            "assign_rescued": assign_rescued,
             "filled_before": (
                 self._board_state.filled_cells() if self._board_state else frozenset()
             ),
