@@ -37,7 +37,7 @@ class LinuxNotifier:
             subprocess.run(
                 [
                     self._notify_send,
-                    "--app-name=YapbozAsistani",
+                    "--app-name=JigsawSolver",
                     f"--urgency={urgency}",
                     title,
                     message,

@@ -38,7 +38,7 @@ from puzzle_assistant.utils.platform import (
     make_window_capture,
 )
 
-APP_NAME = "Jigsaw Solver"
+APP_NAME = resources.APP_NAME
 APP_TAGLINE = "Gamyun Yapboz — görsel yerleştirme asistanı"
 
 # Palette — drawn from the logo: deep navy field, cyan-to-lime neon accents.

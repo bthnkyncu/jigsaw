@@ -27,3 +27,7 @@ def asset_path(relative: str) -> Path:
 
 LOGO_PNG = "images/logo_icon.png"
 LOGO_ICO = "images/logo_icon.ico"
+
+# Product name, shown in the window title, notifications and the OS. Kept here
+# so every surface reads it from one place.
+APP_NAME = "Jigsaw Solver"

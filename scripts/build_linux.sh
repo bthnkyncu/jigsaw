@@ -13,7 +13,7 @@ pip install --quiet pyinstaller
 
 rm -rf build/ dist/
 
-pyinstaller --onefile --name "YapbozAsistani" \
+pyinstaller --onefile --name "JigsawSolver" \
   --add-data "puzzle_assistant/config/defaults.py:puzzle_assistant/config" \
   --hidden-import "Xlib.ext.shape" \
   --hidden-import "pynput.mouse._xorg" \
@@ -22,4 +22,4 @@ pyinstaller --onefile --name "YapbozAsistani" \
   puzzle_assistant/main.py
 
 echo
-echo "Built: dist/YapbozAsistani"
+echo "Built: dist/JigsawSolver"

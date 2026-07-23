@@ -38,6 +38,7 @@ from puzzle_assistant.state import state_machine as sm
 from puzzle_assistant.state.watchdog import watch
 from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import Bbox, cell_bbox
+from puzzle_assistant.utils.resources import APP_NAME
 
 if TYPE_CHECKING:
     from puzzle_assistant.capture.interfaces import MouseHookInterface, WindowCaptureInterface
@@ -204,7 +205,7 @@ class MainLoop:
                 if self._handle is not None:
                     sm.on_window_lost(self._ctx)
                     self._notifier.notify(
-                        "Yapboz Asistanı", "YapBoz penceresi bulunamadı.", urgency="normal"
+                        APP_NAME, "YapBoz penceresi bulunamadı.", urgency="normal"
                     )
                 self._handle = None
                 return
@@ -216,7 +217,7 @@ class MainLoop:
                 plog.event("window_picked", handle=chosen.handle, title=chosen.title)
                 self._handle = chosen.handle
                 self._notifier.notify(
-                    "Yapboz Asistanı",
+                    APP_NAME,
                     "Pencere bulundu — yeni oyunu başlatın.",
                     urgency="normal",
                 )
@@ -279,7 +280,7 @@ class MainLoop:
                     self._ctx, board_bbox, grid, tmap, panel_bbox, panel_signature
                 )
                 self._notifier.notify(
-                    "Yapboz Asistanı", "Hazır — bol şans!", urgency="normal"
+                    APP_NAME, "Hazır — bol şans!", urgency="normal"
                 )
                 return
 
@@ -291,7 +292,7 @@ class MainLoop:
         # high-quality reference from the assembled board.
         if decision.timed_out and not self._ctx.fallback_warning_issued:
             self._notifier.notify(
-                "Yapboz Asistanı",
+                APP_NAME,
                 "Yapbozun yapılı halini göremedim — lütfen yeni oyun başlatın.",
                 urgency="critical",
             )
@@ -363,7 +364,7 @@ class MainLoop:
         if drift > self._settings.board_bbox_change_threshold_pct:
             sm.on_board_bbox_drift(self._ctx)
             self._notifier.notify(
-                "Yapboz Asistanı",
+                APP_NAME,
                 "Tahta hareketi algılandı — yeniden kalibre ediyorum.",
                 urgency="low",
             )

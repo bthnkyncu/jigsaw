@@ -17,8 +17,13 @@ if (Test-Path dist)  { Remove-Item -Recurse -Force dist }
 
 # Entry is the GUI panel (Baslat/Durdur + status + instructions). --windowed
 # keeps it a GUI app with no console window. --collect-all customtkinter
-# bundles its theme JSON data files.
-pyinstaller --onefile --windowed --name "YapbozAsistani" `
+# bundles its theme JSON data files. --icon sets the taskbar/exe icon;
+# --add-data bundles the logo so the in-app header can display it (resolved via
+# puzzle_assistant/utils/resources.py at runtime).
+pyinstaller --onefile --windowed --name "JigsawSolver" `
+    --icon "images/logo_icon.ico" `
+    --add-data "images/logo_icon.png;images" `
+    --add-data "images/logo_icon.ico;images" `
     --paths . `
     --collect-submodules pynput `
     --collect-all customtkinter `
@@ -28,4 +33,4 @@ pyinstaller --onefile --windowed --name "YapbozAsistani" `
     --noconfirm `
     puzzle_assistant\gui.py
 
-Write-Host "`nBuilt: dist\YapbozAsistani.exe"
+Write-Host "`nBuilt: dist\JigsawSolver.exe"

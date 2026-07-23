@@ -1,12 +1,14 @@
-# Yapboz Asistanı
+# Jigsaw Solver
 
 Visual matching assistant for Gamyun.com's _YapBoz Salonu_ (Java desktop puzzle
 game). The assistant **never moves the mouse**; it draws a translucent
-click-through overlay over the correct target cell while the user drags.
+click-through overlay over the correct target cell while the user drags. The
+end-user manual (Turkish) is in [`KULLANIM.txt`](KULLANIM.txt).
 
 ## Status
 
-In active development — Phase 0 (skeleton) complete.
+Feature-complete and in field testing on real games; the Windows `.exe` is built
+by the GitHub Actions workflow (`.github/workflows/build-windows.yml`).
 
 ## Quick start (Ubuntu 22.04, X11)
 

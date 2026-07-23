@@ -1,98 +1,397 @@
-YAPBOZ ASİSTANI — KULLANIM KILAVUZU
-====================================
+╔══════════════════════════════════════════════════════════════════════╗
+║                    JIGSAW SOLVER — KULLANIM KILAVUZU                    ║
+╚══════════════════════════════════════════════════════════════════════╝
 
-Gamyun.com YapBoz Salonu için görsel rehber. Fareyi otomatik kontrol ETMEZ —
-sadece doğru parça yerini yarı saydam yeşil çerçeveyle gösterir.
+Gamyun.com "YapBoz Salonu" oyunu için GÖRSEL REHBER.
 
+Ekranı okur ve tuttuğunuz parçanın ait olduğu hücreyi yarı saydam YEŞİL
+bir çerçeveyle gösterir. Fareyi ELE ALMAZ, tıklama YAPMAZ, parçaları
+KENDİSİ YERLEŞTİRMEZ. Kararı ve hamleyi her zaman siz verirsiniz; asistan
+yalnızca "bu parça buraya gidiyor" diye işaret eder.
 
-1. SİSTEM GEREKSİNİMLERİ
-------------------------
-- Windows 11 (önerilen) veya Ubuntu 22.04 / X11 oturumu
-- 2560×1440 veya 1920×1080 ekran, %100 DPI ölçek
-- Java tabanlı Gamyun YapBoz Salonu masaüstü uygulaması
+Bu kılavuz her ayrıntıyı içerir. Acelesi olanlar için en kısa özet:
 
-
-2. ÜÇ ALTIN KURAL
------------------
-1) **Önce asistanı, sonra yapbozu açın.**
-   Asistan, yapboz başlatıldığı andaki ~2 saniyelik tam görüntüyü
-   yakalayarak en yüksek doğrulukta çalışır.
-
-2) **Asistan açıkken oyun içinde zoom yapmayın.**
-   Zoom yaparsanız asistan otomatik yeniden kalibrasyon yapar; zaman
-   kaybetmemek için zoom kullanmayın.
-
-3) **Yeni yapboz başlatırken asistanı kapatmaya gerek yok.**
-   Sağ üst referans panel değiştiğinde asistan yeni yapbozu otomatik
-   algılar ve sıfırdan kalibre eder.
+    1) Oyunu açın, bir masaya girin.
+    2) Jigsaw Solver'ı açın, parça sayısını yazın, BAŞLAT'a basın.
+    3) Oyunda YENİ OYUN'a basın, durum "Hazır" olsun.
+    4) Parça sürükleyin — doğru hücre yeşil yanıp söner.
 
 
-3. KURULUM
-----------
-
-Windows 11:
-  - YapbozAsistani.exe'yi indirilip masaüstüne kopyalayın.
-  - Windows Defender ilk açılışta uyarı verirse "Yine de çalıştır" deyin.
-    (Asistan dijital imzasız; davranışı: ekran okuma + click-through
-     gösterim, fare/klavye kontrolü YOKTUR.)
-
-Ubuntu 22.04:
-  - dist/YapbozAsistani dosyasını çift tıklayın veya terminalden:
-        ./YapbozAsistani
-
-
-4. KULLANIM AKIŞI
------------------
-
-1. Gamyun YapBoz Salonu uygulamasını açın, bir masaya girin
-   ("Yapboz oyun salonu" / "Masa #..").
-
-2. YapbozAsistani.exe'yi çalıştırın. Açılan küçük pencerede
-   BAŞLAT'a basın. "Durum" satırı asistanın ne yaptığını gösterir:
-     - "Oyun penceresi aranıyor…"  → oyun penceresi henüz bulunamadı
-     - "Yeni oyun bekleniyor"      → pencere bulundu, YENİ OYUN'a basın
-     - "Hazır"                      → kalibre oldu, oynayabilirsiniz
-
-3. Oyunda "YENİ OYUN" butonuna basın. Tahta ~2 saniye boyunca
-   tam yapılmış görüntüyle gözükür; asistan onu referans alır.
-
-4. Durum "Hazır" olunca bir parçayı fareyle tutup sürükleyin.
-   Asistan parçanın ait olduğu hücreyi yarı saydam YEŞİL çerçeveyle
-   gösterir. Birleşik parça gruplarında çerçeve GÖSTERİLMEZ.
-
-5. Asistanı istediğiniz an DURDUR ile durdurup BAŞLAT ile tekrar
-   başlatabilirsiniz. Kapatmak için pencereyi kapatmanız yeterli.
+────────────────────────────────────────────────────────────────────────
+ İÇİNDEKİLER
+────────────────────────────────────────────────────────────────────────
+   1. Sistem gereksinimleri
+   2. Ekran ölçeğini %100 yapma (ÇOK ÖNEMLİ)
+   3. Kurulum (Windows)
+   4. İlk çalıştırma — adım adım
+   5. Penceredeki her şey ne işe yarar
+   6. "Durum" satırındaki her mesaj ve anlamı
+   7. Yeşil çerçeve — ne demek, ne zaman çıkar, ne zaman çıkmaz
+   8. Parça sayısı neden isteniyor
+   9. En iyi sonuç için altın kurallar
+  10. Oyun sonu: son birkaç parça
+  11. Yeni yapbozа geçmek
+  12. Sorun giderme (belirti → sebep → çözüm)
+  13. Loglar ve sorun bildirimi
+  14. Bilinen sınırlar (dürüst notlar)
+  15. Gizlilik ve güvenlik
+  16. Kaldırma
 
 
-5. SIK KARŞILAŞILAN DURUMLAR
-----------------------------
-
-"Düşük kaliteli kaynak" uyarısı:
-  Asistanı oyun açıldıktan sonra çalıştırdınız ve birincil kaynak
-  (init view) kaçırıldı. Asistan sağ üst panelden tahmin yapıyor;
-  doğruluk düşüktür. "YENİ OYUN" düğmesine basın.
-
-"YapBoz penceresi bulunamadı":
-  Gamyun penceresi açık değil veya başlığı tanınmıyor. Pencere
-  başlığında "YapBoz" geçmesi gerekir.
-
-Yeşil çerçeve yanlış yere geliyor:
-  Pencere taşınmış veya zoom kullanılmış olabilir. Asistan kısa
-  süre içinde tekrar kalibre eder.
+────────────────────────────────────────────────────────────────────────
+ 1. SİSTEM GEREKSİNİMLERİ
+────────────────────────────────────────────────────────────────────────
+- İşletim sistemi: Windows 11 (önerilen) veya Windows 10.
+- Ekran: 2560×1440 veya 1920×1080. Çözünürlük fark etmez, ama DPI/ölçek
+  %100 olmalı (bkz. bölüm 2).
+- Gamyun "YapBoz Salonu" masaüstü oyununun açık olması.
+- İnternet: Jigsaw Solver çalışmak için internete BAĞLANMAZ. (Oyunun
+  kendisi internet ister; asistan istemez.)
+- Kurulum gerektirmez: tek dosyalık bir .exe'dir, çift tıklayıp
+  çalıştırırsınız.
 
 
-6. LOGLAR
----------
-Çalışma sırasında oluşan loglar `logs/puzzle_assistant.log` dosyasına
-JSON satırları halinde yazılır. Sorun gönderdiğinizde bu dosyayı
-ekleyebilirsiniz.
+────────────────────────────────────────────────────────────────────────
+ 2. EKRAN ÖLÇEĞİNİ %100 YAPMA  (ÇOK ÖNEMLİ)
+────────────────────────────────────────────────────────────────────────
+Windows ekranı büyütmek için genelde %125 veya %150 ölçek kullanır.
+Bu açıkken yeşil çerçeve YANLIŞ hücreye düşer, çünkü asistanın gördüğü
+piksel ölçüsü ile oyunun çizdiği ölçü birbirini tutmaz.
+
+Ölçeği %100 yapmak için:
+   1) Masaüstünde boş bir yere SAĞ tıklayın → "Görüntü ayarları"
+      (Display settings).
+   2) "Ölçek ve düzen" (Scale and layout) bölümünü bulun.
+   3) "Metnin, uygulamaların ve diğer öğelerin boyutunu değiştir"
+      açılır listesini %100 yapın.
+   4) Çıkışa/yeniden oturum açmaya gerek yok; değişiklik anında geçerli
+      olur. Emin olmak için Jigsaw Solver'ı %100'e geçtikten SONRA açın.
+
+Not: Ölçeği kalıcı düşürmek istemiyorsanız yalnızca oyunu ve asistanı
+kullanacağınız süre için %100 yapmanız yeterlidir; sonra eski değere
+geri alabilirsiniz.
 
 
-7. KAPSAM DIŞI
---------------
-Asistan ASLA:
-- Fareyi hareket ettirmez,
-- Tıklama yapmaz,
-- Parçaları otomatik yerleştirmez.
+────────────────────────────────────────────────────────────────────────
+ 3. KURULUM (WINDOWS)
+────────────────────────────────────────────────────────────────────────
+1) JigsawSolver.exe dosyasını masaüstünüze kopyalayın (veya kolay
+   bulacağınız bir klasöre).
 
-Sadece doğru hücreyi gösteren bir REHBERdir.
+2) Çift tıklayın.
+
+3) Windows ilk açılışta bir güvenlik uyarısı gösterebilir:
+   ┌────────────────────────────────────────────────────────────┐
+   │  "Windows bilgisayarınızı korudu" (SmartScreen) çıkarsa:    │
+   │    → "Ek bilgi" (More info) yazısına tıklayın               │
+   │    → çıkan "Yine de çalıştır" (Run anyway) düğmesine basın. │
+   └────────────────────────────────────────────────────────────┘
+   Bu uyarı, dosyanın imzalı/çok indirilmiş olmamasından çıkar; zararlı
+   olduğu anlamına gelmez. Jigsaw Solver yalnızca ekranı okur ve çerçeve
+   çizer (bkz. bölüm 15).
+
+4) Antivirüs programınız uyarırsa dosyaya "izin ver / güven" deyin.
+   İsterseniz kurumsal BT ekibinize bölüm 15'i gösterebilirsiniz.
+
+5) Açıldığında küçük, koyu renkli bir pencere görürsünüz: üstte logo ve
+   "Jigsaw Solver" yazısı. Kurulum bu kadar.
+
+
+────────────────────────────────────────────────────────────────────────
+ 4. İLK ÇALIŞTIRMA — ADIM ADIM
+────────────────────────────────────────────────────────────────────────
+Sıralama önemlidir. En yüksek doğruluk için önce oyunu, sonra asistanı
+hazırlayın.
+
+ADIM 1 — Oyunu açın.
+   Gamyun "YapBoz Salonu"nu açın ve bir masaya girin
+   ("Masa #.." başlıklı pencere görünmeli).
+
+ADIM 2 — Kaç parçalık oynayacağınızı seçin.
+   Oyunda yeni oyun ayarlarında parça sayısını (ör. 100, 150, 200) siz
+   belirlersiniz. Bu sayıyı aklınızda tutun.
+
+ADIM 3 — Jigsaw Solver'ı açın.
+   Pencerede ortada "Parça sayısı" kutusu var. Buraya ADIM 2'de
+   seçtiğiniz sayıyı yazın (ör. 150). Bu, ızgarayı doğru bölmek için
+   kullanılır (bkz. bölüm 8).
+
+ADIM 4 — BAŞLAT'a basın.
+   Yeşil BAŞLAT düğmesine basın. "Durum" satırı ne olduğunu anlatır:
+     • "Oyun penceresi aranıyor…"  → oyun penceresi henüz bulunamadı.
+     • "Yeni oyun bekleniyor…"     → pencere bulundu; sıra sizde.
+
+ADIM 5 — Oyunda YENİ OYUN başlatın.
+   Oyundaki "YENİ OYUN" düğmesine basın. Tahta yaklaşık 2 saniye boyunca
+   TAMAMLANMIŞ resmi gösterir. Asistan tam o anı referans olarak
+   yakalar. Bu yüzden bu 2 saniyede oyun penceresinin önünü kapatmayın.
+
+ADIM 6 — "Hazır"ı bekleyin.
+   Durum "Hazır — parça sürükleyin, doğru hücre yeşil yanar" olduğunda
+   asistan çalışmaya hazırdır.
+
+ADIM 7 — Oynayın.
+   Bir parçayı fareyle tutup boş bir alana sürükleyin. Parça o hücreye
+   aitse, tahtadaki doğru hücrede yarı saydam YEŞİL bir çerçeve yanıp
+   söner. Parçayı oraya siz bırakırsınız.
+
+   İpucu: Parçalar oyun başında üst üste yığılı gelir. Bir parçayı önce
+   yığından çekip boş bir yere bırakın, sonra tekrar tutup taşıyın;
+   asistan tek ve net bir parçayı daha kolay tanır.
+
+
+────────────────────────────────────────────────────────────────────────
+ 5. PENCEREDEKİ HER ŞEY NE İŞE YARAR
+────────────────────────────────────────────────────────────────────────
+• Başlık (logo + "Jigsaw Solver"): sadece kimlik. Bir işlevi yoktur.
+
+• DURUM kartı: soldaki renkli nokta ve yanındaki yazı, asistanın o an ne
+  yaptığını söyler (bkz. bölüm 6). Nokta rengi:
+     – Gri  : durdurulmuş.
+     – Sarı : çalışıyor ama henüz hazır değil (arıyor/kalibre ediyor).
+     – Yeşil: hazır, oynayabilirsiniz.
+
+• Parça sayısı kutusu: BAŞLAT'tan ÖNCE doldurun (bkz. bölüm 8).
+  Çalışırken kilitlenir; DURDUR'a basınca tekrar yazılabilir.
+
+• BAŞLAT: asistanı çalıştırır.
+
+• DURDUR: asistanı durdurur. Yeşil çerçeve kaybolur, ekran okunmaz.
+  İstediğiniz an basıp tekrar BAŞLAT'la sürdürebilirsiniz.
+
+• 📖 Nasıl Oynanır?: adım adım özet penceresini açar.
+
+• 📋 Loglar: asistanın olay kaydını canlı gösterir. Teknik bir sorun
+  bildirileceğinde faydalıdır (bkz. bölüm 13). Normal oyunda gerekmez.
+
+• Alt yazı: "Fareyi kullanmaz · ekranı okur ve yeşil çerçeve çizer ·
+  %100 ölçek gerekir" — kalıcı hatırlatma.
+
+
+────────────────────────────────────────────────────────────────────────
+ 6. "DURUM" SATIRINDAKİ HER MESAJ VE ANLAMI
+────────────────────────────────────────────────────────────────────────
+"Durduruldu"
+   Asistan çalışmıyor. BAŞLAT'a basın.
+
+"Oyun penceresi aranıyor… (oyun açık mı?)"
+   Oyun penceresi bulunamadı. Gamyun YapBoz masasının açık olduğundan ve
+   pencere başlığında "YapBoz" geçtiğinden emin olun.
+
+"Yeni oyun bekleniyor — oyunda YENİ OYUN'a basın"
+   Pencere bulundu. Sıra sizde: oyunda YENİ OYUN'a basın ki asistan
+   tamamlanmış resmi referans alsın.
+
+"Açılış görüntüsü yakalanıyor…" / "Yedek kaynaktan kalibre ediliyor…"
+   Asistan referansı hazırlıyor. Birkaç saniye bekleyin.
+
+"Hazır — parça sürükleyin, doğru hücre yeşil yanar"
+   Her şey yolunda. Oynayabilirsiniz.
+
+"Hazır … (düşük kaliteli kaynak)"
+   Asistan tamamlanmış açılış resmini kaçırdı (muhtemelen oyunu
+   asistandan önce başlattınız) ve sağ üstteki küçük önizlemeyi referans
+   alıyor. Çalışır ama doğruluk düşer. Oyunda YENİ OYUN'a basıp asistanın
+   açılış resmini yeniden yakalamasını sağlayın.
+
+"Parça takip ediliyor…"
+   Bir parçayı sürüklüyorsunuz ve asistan onu izliyor. Normaldir.
+
+
+────────────────────────────────────────────────────────────────────────
+ 7. YEŞİL ÇERÇEVE — NE DEMEK, NE ZAMAN ÇIKAR, NE ZAMAN ÇIKMAZ
+────────────────────────────────────────────────────────────────────────
+• Yeşil çerçeve, tuttuğunuz parçanın ait olduğu HÜCREyi gösterir. Yanıp
+  sönerek dikkat çeker. Tıklamalarınız çerçevenin İÇİNDEN oyuna geçer;
+  yani çerçeve oynamanızı hiçbir şekilde engellemez.
+
+• Çerçeve neden bazen ÇIKMAZ?
+  Jigsaw Solver'ın tek bir katı kuralı vardır: YANLIŞ yer göstermektense
+  HİÇ göstermemek. Emin olamadığı parçada çerçeve çizmez. Yani "çerçeve
+  yok" demek çoğu zaman "bu parçadan emin değilim, siz bakın" demektir —
+  hata değil, güvenlik.
+
+• Birleşik parça grupları: iki-üç parçayı birbirine geçirip birlikte
+  taşırsanız asistan çerçeve göstermez. Tek parça taşıyın.
+
+• Çok benzer/tek renk bölgeler: gökyüzü, düz duvar, aynı desenin
+  tekrarladığı yerler gibi ayırt edici detayı az parçalarda asistan
+  bilerek susabilir (bkz. bölüm 14).
+
+
+────────────────────────────────────────────────────────────────────────
+ 8. PARÇA SAYISI NEDEN İSTENİYOR
+────────────────────────────────────────────────────────────────────────
+Asistan tahtayı doğru sayıda satır ve sütuna bölmek için toplam parça
+sayısını kullanır. Yanlış sayı girerseniz ızgara kayar ve yeşil çerçeve
+komşu hücreye düşebilir.
+
+- Sayıyı, oyunda yeni oyun açarken SİZ seçersiniz (ör. 100 / 150 / 200).
+- Aynı sayıyı asistandaki "Parça sayısı" kutusuna yazın.
+- Emin değilseniz oyunun sağ üstündeki parça/görev bilgisinden teyit
+  edin.
+- Kutuyu boş bırakırsanız asistan tahtanın en/boy oranından tahmin
+  etmeye çalışır; girmeniz her zaman daha güvenlidir.
+
+
+────────────────────────────────────────────────────────────────────────
+ 9. EN İYİ SONUÇ İÇİN ALTIN KURALLAR
+────────────────────────────────────────────────────────────────────────
+1) ÖNCE oyunu açın, SONRA asistanı BAŞLAT'ıp oyunda YENİ OYUN'a basın.
+   Böylece asistan tamamlanmış açılış resmini (en iyi referans) yakalar.
+
+2) YENİ OYUN'a bastıktan sonraki ~2 saniye tahtanın önünü kapatmayın.
+   Referans o an yakalanır.
+
+3) Ekran ölçeği %100 olsun (bölüm 2). En sık yanlış-çerçeve sebebi budur.
+
+4) Oyun içinde ZOOM yapmayın. Zoom, tahtayı büyütür/küçültür; asistan
+   yeniden kalibre etmek zorunda kalır ve "Hazır" birkaç saniye gecikir.
+
+5) Oyun penceresini gereksiz yere taşımayın. Taşırsanız sorun değil —
+   asistan tahtayı takip eder — ama bir an için çerçeve şaşabilir.
+
+6) Tek parça taşıyın; birleşik grupları tek tek yerleştirin.
+
+
+────────────────────────────────────────────────────────────────────────
+ 10. OYUN SONU: SON BİRKAÇ PARÇA
+────────────────────────────────────────────────────────────────────────
+Yapbozun sonuna doğru, tahtada yalnızca birkaç boş hücre kaldığında bazı
+parçaların yeri kendi başına anlaşılması zorlaşır. Jigsaw Solver bu
+aşamada iki ek yöntem dener:
+
+ • Boşlukların ŞEKLİNE bakar: tahtadaki boş hücre, oraya gidecek parçanın
+   şeklinin tam tersidir. Parçanın silueti bir boşluğa net oturuyorsa
+   asistan onu gösterebilir.
+
+ • Kalan parçaları TOPLU değerlendirir: kalan boşluk sayısı kadar parça
+   varsa, "her boşluğa tam bir parça gider" kuralıyla hepsini birlikte
+   çözmeye çalışır. Böylece tek başına anlaşılmayan bir parça, diğer
+   parçalar başka hücrelere daha iyi uyduğu için yerini bulabilir.
+
+Bu iki yöntem de aynı katı kurala tabidir: emin olmadıkça çerçeve
+çizilmez. Yani son parçalarda çerçeve az çıkabilir; çıkarsa güvenlidir.
+
+
+────────────────────────────────────────────────────────────────────────
+ 11. YENİ YAPBOZA GEÇMEK
+────────────────────────────────────────────────────────────────────────
+Yeni bir yapboz başlatmak için asistanı KAPATMANIZA GEREK YOKTUR.
+
+- Oyunda yeni bir yapboz açtığınızda (veya YENİ OYUN'a bastığınızda)
+  asistan değişikliği kendi algılar ve sıfırdan kalibre olur.
+- Durum kısa süre "Yeni oyun bekleniyor / kalibre ediliyor"a döner,
+  sonra tekrar "Hazır" olur.
+- Farklı parça sayısına geçtiyseniz: DURDUR → "Parça sayısı" kutusunu
+  güncelleyin → BAŞLAT.
+
+
+────────────────────────────────────────────────────────────────────────
+ 12. SORUN GİDERME  (belirti → sebep → çözüm)
+────────────────────────────────────────────────────────────────────────
+Yeşil çerçeve sürekli YANLIŞ hücreye düşüyor
+   Sebep: ekran ölçeği %100 değil (en sık sebep), ya da parça sayısı
+   yanlış girildi.
+   Çözüm: Ölçeği %100 yapın (bölüm 2). Parça sayısını doğru girin
+   (bölüm 8). Sonra DURDUR → BAŞLAT → oyunda YENİ OYUN.
+
+Hiç çerçeve çıkmıyor (ama durum "Hazır")
+   Sebep: parçalardan emin olunamıyor olabilir; ya da açılış resmi net
+   yakalanamadı.
+   Çözüm: Oyunda YENİ OYUN'a basın ki tam resim yeniden okunsun. Parçayı
+   yığından ayırıp tek başına taşıyın. Yine de bazı parçalar bilerek
+   gösterilmeyebilir (bölüm 14).
+
+Durum sürekli "Oyun penceresi aranıyor…"da kalıyor
+   Sebep: oyun penceresi kapalı veya başlığı tanınmıyor.
+   Çözüm: Gamyun YapBoz masasını açın. Pencere başlığında "YapBoz"
+   geçmeli. Oyunu tam ekran değil, normal pencere modunda tutmayı deneyin.
+
+Durum "düşük kaliteli kaynak" diyor
+   Sebep: asistan tamamlanmış açılış resmini kaçırdı.
+   Çözüm: Oyunda YENİ OYUN'a basın; asistan açılış resmini yeniden
+   yakalasın.
+
+"Hazır" çok geç geliyor / oyun daha tam yapılmadan "Hazır" diyor
+   Sebep: geri sayım veya yarım tahta, tam resimle karıştırıldı.
+   Çözüm: YENİ OYUN'a bastıktan sonra tahtanın tamamen dolu göründüğü
+   ~2 saniyede bekleyin; başka pencereyle üstünü kapatmayın.
+
+Pencereyi taşıdım, çerçeve bir an şaştı
+   Sebep: tahta yer değiştirdi.
+   Çözüm: Bir-iki saniye bekleyin; asistan tahtayı takip edip düzelir.
+
+Beyaz/açık mavi ağırlıklı yapbozda başarı çok düşük
+   Sebep: boş tahta rengi ile resmin açık renkleri birbirine çok
+   benziyor; asistan boş hücreyi ayırt edemiyor. Bu bilinen bir sınırdır
+   (bölüm 14).
+   Çözüm: Bu tür yapbozlarda asistan yardımcı olamayabilir; renkli/
+   dokulu yapbozlarda çok daha iyidir.
+
+
+────────────────────────────────────────────────────────────────────────
+ 13. LOGLAR VE SORUN BİLDİRİMİ
+────────────────────────────────────────────────────────────────────────
+- Asistan çalışırken olayları bir günlük dosyasına yazar:
+      logs/puzzle_assistant.log
+  (JigsawSolver.exe'nin bulunduğu klasörün yanındaki "logs" klasöründe.)
+- Pencereden 📋 Loglar ile de canlı görebilirsiniz. Parça sürüklerken
+  "TRACKING" ve "match" satırlarının akması, asistanın çalıştığını
+  gösterir.
+- Bir sorun bildireceğinizde bu log dosyasını eklemeniz çözümü çok
+  hızlandırır.
+
+
+────────────────────────────────────────────────────────────────────────
+ 14. BİLİNEN SINIRLAR  (dürüst notlar)
+────────────────────────────────────────────────────────────────────────
+Jigsaw Solver renkli, dokulu yapbozlarda çok yüksek isabetle çalışır.
+Aşağıdaki durumlarda daha az yardımcı olur — bunlar bilerek kabul edilen
+sınırlardır, çünkü yanlış göstermektense hiç göstermemeyi tercih eder:
+
+ • Beyaz / açık mavi ağırlıklı yapbozlar: boş tahtanın rengi resmin açık
+   renkleriyle karıştığı için boş hücre ayırt edilemez. Bu sınıfta
+   başarı düşüktür.
+
+ • Neredeyse tamamı aynı renk/desen olan yapbozlar (yaprak, su, gökyüzü,
+   düz zemin): parçalar birbirine çok benzediğinden bazı parçalar
+   gösterilmeyebilir.
+
+ • En dış kenar ve köşe parçaları, iç parçalara göre biraz daha zordur;
+   yine de çoğu doğru gösterilir.
+
+Bir parça gösterilmediğinde bunu bir kusur değil, "emin değilim" mesajı
+olarak okuyun ve o parçayı kendiniz yerleştirin.
+
+
+────────────────────────────────────────────────────────────────────────
+ 15. GİZLİLİK VE GÜVENLİK
+────────────────────────────────────────────────────────────────────────
+Jigsaw Solver ne YAPAR:
+   • Ekranın yalnızca oyun penceresini okur (görüntü işler).
+   • Ekrana tıklama-geçirgen bir yeşil çerçeve çizer.
+   • Olayları yerel bir log dosyasına yazar.
+
+Jigsaw Solver ne YAPMAZ:
+   • Fareyi hareket ettirmez, tıklamaz, klavye kullanmaz.
+   • Parçaları otomatik yerleştirmez, oyunu sizin yerinize oynamaz.
+   • İnternete bağlanmaz; hiçbir veriyi hiçbir yere GÖNDERMEZ.
+   • Kişisel dosyalarınıza dokunmaz; kurulum/kayıt defteri değişikliği
+     yapmaz (tek dosyalık taşınabilir uygulamadır).
+
+Kısacası: oyunu siz oynarsınız, asistan yalnızca doğru yeri işaret eden
+sessiz bir rehberdir.
+
+
+────────────────────────────────────────────────────────────────────────
+ 16. KALDIRMA
+────────────────────────────────────────────────────────────────────────
+Kurulum yapılmadığı için "kaldırma" da gerekmez. JigsawSolver.exe
+dosyasını (ve yanındaki "logs" klasörünü) silmeniz yeterlidir.
+
+
+────────────────────────────────────────────────────────────────────────
+Jigsaw Solver — Gamyun YapBoz Salonu için görsel yerleştirme asistanı.
+Fareyi kullanmaz; yalnızca doğru hücreyi gösterir.
+────────────────────────────────────────────────────────────────────────
