@@ -26,6 +26,7 @@ from __future__ import annotations
 
 import logging
 import time
+from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
 import cv2
@@ -35,11 +36,9 @@ from puzzle_assistant.config import Settings
 from puzzle_assistant.matching.ensemble import MatchResult
 from puzzle_assistant.reference.target_map import TargetMap
 from puzzle_assistant.utils import logger as plog
-from puzzle_assistant.utils.coords import CellAddress
+from puzzle_assistant.utils.coords import CellAddress, GridSpec
 
 if TYPE_CHECKING:
-    from collections.abc import Callable
-
     from puzzle_assistant.piece.board_state import BoardState
 
 _FG_THRESHOLD = 35.0
@@ -78,15 +77,82 @@ def match_piece(
     return result
 
 
-def _match(
+@dataclass
+class Prepared:
+    """Everything derived from one piece + board that scoring needs.
+
+    Split out of ``_match`` so the endgame assignment can score a piece against
+    a set of cells using *exactly* the same numbers the live matcher uses,
+    rather than a re-implementation that could drift away from it.
+    """
+
+    board: np.ndarray
+    fg: np.ndarray
+    ccoeff: np.ndarray
+    ccorr: np.ndarray | None
+    piece_lab: np.ndarray
+    orb: object
+    bf: object
+    p_desc: np.ndarray | None
+    settings: Settings
+    texture: float
+    clipped: tuple[bool, bool, bool, bool]
+    pw: int
+    ph: int
+    pad: int
+    scale: float
+
+    def score_at(self, x: int, y: int, ccoeff_score: float) -> float:
+        cr = 0.0
+        if self.ccorr is not None and 0 <= y < self.ccorr.shape[0] and 0 <= x < self.ccorr.shape[1]:
+            cr = float(self.ccorr[y, x])
+        # Colour agreement between the piece and the board patch it would cover.
+        patch = self.board[y:y + self.ph, x:x + self.pw]
+        color_score = _color_agreement(self.piece_lab, patch, self.fg)
+        orb_score = _orb_agreement(self.orb, self.bf, self.p_desc, patch, self.settings)
+        # Base appearance score from the three signals that actually fire on a
+        # dragged ~60 px puzzle piece. ORB used to be a fixed 0.30 weight, but
+        # its measured median on these pieces is 0.0 (too few keypoints; the
+        # cross-check + Hamming gate is too strict at this resolution), so that
+        # 0.30 was dead weight dragging *every* combined score down ~30 % and
+        # pushing correctly-localized pieces below the gate. ORB now only adds a
+        # bonus when it genuinely fires (repeated-texture pieces — fur, petals),
+        # so it can still break those ties without capping the common case.
+        base = 0.60 * ccoeff_score + 0.25 * cr + 0.15 * color_score
+        return min(1.0, base + 0.15 * orb_score)
+
+    def best_in_cell(
+        self, row: int, col: int, grid: GridSpec
+    ) -> tuple[float, int, int] | None:
+        """Best score reachable with the piece centred on cell ``(row, col)``.
+
+        Half a cell of slack, because the silhouette's centre is offset from the
+        cell centre by however far the tabs stick out.
+        """
+        height, width = self.ccoeff.shape
+        rx = int(grid.cell_w * self.scale * 0.45)
+        ry = int(grid.cell_h * self.scale * 0.45)
+        x0 = round((col + 0.5) * grid.cell_w * self.scale + self.pad - self.pw / 2)
+        y0 = round((row + 0.5) * grid.cell_h * self.scale + self.pad - self.ph / 2)
+        xa, xb = max(0, x0 - rx), min(width, x0 + rx + 1)
+        ya, yb = max(0, y0 - ry), min(height, y0 + ry + 1)
+        if xb <= xa or yb <= ya:
+            return None
+        window = self.ccoeff[ya:yb, xa:xb]
+        wy, wx = divmod(int(np.argmax(window)), window.shape[1])
+        x, y = xa + wx, ya + wy
+        return self.score_at(x, y, float(window[wy, wx])), x, y
+
+
+def prepare(
     piece_bgr: np.ndarray,
     target_map: TargetMap,
     settings: Settings,
-    board_state: "BoardState | None" = None,
     clipped_sides: tuple[bool, bool, bool, bool] | None = None,
-) -> MatchResult:
+) -> Prepared | str:
+    """Build a :class:`Prepared`, or return the rejection reason as a string."""
     if piece_bgr.size == 0:
-        return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="empty_piece")
+        return "empty_piece"
 
     # Upscale the whole match (board + piece) so a tiny ~42 px cell becomes
     # ~84 px. Both CCOEFF and ORB are far more discriminating at higher
@@ -123,7 +189,7 @@ def _match(
     cols_any = np.where(fg.max(axis=0) > 0)[0]
     rows_any = np.where(fg.max(axis=1) > 0)[0]
     if len(cols_any) < 4 or len(rows_any) < 4:
-        return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="empty_fg")
+        return "empty_fg"
     cx0, cx1 = int(cols_any[0]), int(cols_any[-1]) + 1
     cy0, cy1 = int(rows_any[0]), int(rows_any[-1]) + 1
     # Which sides were cut off by the capture window. A cut-off side looks
@@ -148,7 +214,7 @@ def _match(
     ph, pw = piece.shape[:2]
 
     if pw > bw or ph > bh or pw < 8 or ph < 8:
-        return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="bad_piece_size")
+        return "bad_piece_size"
 
     # Neutralise the silhouette before CCOEFF. The tight crop is a *rectangle*,
     # so everything between the tabs is desk, not puzzle content — and CCOEFF
@@ -180,7 +246,7 @@ def _match(
         ccoeff = cv2.matchTemplate(board, piece_ccoeff, cv2.TM_CCOEFF_NORMED)
         ccoeff = np.clip(ccoeff, 0.0, 1.0)
     except cv2.error:
-        return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason="ccoeff_failed")
+        return "ccoeff_failed"
 
     # Masked CCORR as a secondary colour-fidelity signal.
     try:
@@ -190,18 +256,6 @@ def _match(
     except cv2.error:
         ccorr = None
 
-    texture = _piece_texture(piece, fg)
-
-    candidates = _top_n_candidates(ccoeff, pw, ph, n=8, min_score=0.0)
-    if not candidates:
-        return MatchResult(
-            cell=None, combined=0.0, margin=0.0, rejected_reason="no_candidate",
-            texture=texture,
-        )
-
-    # Lab mean of the piece (foreground only) for a per-candidate colour check.
-    piece_lab = _masked_lab_mean(piece, fg)
-
     # ORB descriptors of the piece (foreground only). Feature matching breaks
     # the repeated-texture ties that template/colour can't: even when fur or
     # petals look alike across the board, the local keypoint geometry differs,
@@ -209,26 +263,38 @@ def _match(
     orb = cv2.ORB_create(nfeatures=settings.orb_n_features)  # type: ignore[attr-defined]
     piece_gray = cv2.cvtColor(piece, cv2.COLOR_BGR2GRAY)
     _p_kp, p_desc = orb.detectAndCompute(piece_gray, fg)
-    bf = cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True)
 
-    def score_at(x: int, y: int, ccoeff_score: float) -> float:
-        cr = 0.0
-        if ccorr is not None and 0 <= y < ccorr.shape[0] and 0 <= x < ccorr.shape[1]:
-            cr = float(ccorr[y, x])
-        # Colour agreement between the piece and the board patch it would cover.
-        patch = board[y:y + ph, x:x + pw]
-        color_score = _color_agreement(piece_lab, patch, fg)
-        orb_score = _orb_agreement(orb, bf, p_desc, patch, settings)
-        # Base appearance score from the three signals that actually fire on a
-        # dragged ~60 px puzzle piece. ORB used to be a fixed 0.30 weight, but
-        # its measured median on these pieces is 0.0 (too few keypoints; the
-        # cross-check + Hamming gate is too strict at this resolution), so that
-        # 0.30 was dead weight dragging *every* combined score down ~30 % and
-        # pushing correctly-localized pieces below the gate. ORB now only adds a
-        # bonus when it genuinely fires (repeated-texture pieces — fur, petals),
-        # so it can still break those ties without capping the common case.
-        base = 0.60 * ccoeff_score + 0.25 * cr + 0.15 * color_score
-        return min(1.0, base + 0.15 * orb_score)
+    return Prepared(
+        board=board, fg=fg, ccoeff=ccoeff, ccorr=ccorr,
+        piece_lab=_masked_lab_mean(piece, fg),
+        orb=orb, bf=cv2.BFMatcher(cv2.NORM_HAMMING, crossCheck=True), p_desc=p_desc,
+        settings=settings, texture=_piece_texture(piece, fg), clipped=clipped,
+        pw=pw, ph=ph, pad=pad, scale=scale,
+    )
+
+
+def _match(
+    piece_bgr: np.ndarray,
+    target_map: TargetMap,
+    settings: Settings,
+    board_state: "BoardState | None" = None,
+    clipped_sides: tuple[bool, bool, bool, bool] | None = None,
+) -> MatchResult:
+    prep = prepare(piece_bgr, target_map, settings, clipped_sides)
+    if isinstance(prep, str):
+        return MatchResult(cell=None, combined=0.0, margin=0.0, rejected_reason=prep)
+
+    fg, ccoeff = prep.fg, prep.ccoeff
+    pw, ph, pad, scale = prep.pw, prep.ph, prep.pad, prep.scale
+    texture, clipped = prep.texture, prep.clipped
+    score_at = prep.score_at
+
+    candidates = _top_n_candidates(ccoeff, pw, ph, n=8, min_score=0.0)
+    if not candidates:
+        return MatchResult(
+            cell=None, combined=0.0, margin=0.0, rejected_reason="no_candidate",
+            texture=texture,
+        )
 
     scored: list[tuple[int, int, float]] = [
         (x, y, score_at(x, y, cc)) for x, y, cc in candidates
@@ -262,10 +328,7 @@ def _match(
         ]
         if not empty:
             bx, by, bc = scored[0]
-            cell = _search_empty_cells(
-                ccoeff, score_at, board_state, target_map, settings,
-                pw, ph, scale, pad,
-            )
+            cell = _search_empty_cells(prep, board_state, target_map, settings)
             return MatchResult(
                 cell=cell, combined=bc, margin=0.0,
                 rejected_reason=None if cell else "all_filled", texture=texture,
@@ -361,10 +424,7 @@ def _match(
         piece fit best?" is a different and much easier question. See
         ``_search_empty_cells``.
         """
-        cell = _search_empty_cells(
-            ccoeff, score_at, board_state, target_map, settings,
-            pw, ph, scale, pad,
-        )
+        cell = _search_empty_cells(prep, board_state, target_map, settings)
         if cell is not None:
             return MatchResult(
                 cell=cell, combined=best_combined, margin=margin,
@@ -394,15 +454,10 @@ def _match(
 
 
 def _search_empty_cells(
-    ccoeff: np.ndarray,
-    score_at: "Callable[[int, int, float], float]",
+    prep: Prepared,
     board_state: "BoardState | None",
     target_map: TargetMap,
     settings: Settings,
-    pw: int,
-    ph: int,
-    scale: float,
-    pad: int,
 ) -> CellAddress | None:
     """Which of the still-open cells does the piece fit best?
 
@@ -435,23 +490,11 @@ def _search_empty_cells(
     if not empty or len(empty) > settings.empty_cell_search_max_cells:
         return None
 
-    height, width = ccoeff.shape
-    # Half a cell of slack: the piece's silhouette centre is offset from its
-    # cell centre by however far its tabs stick out.
-    rx = int(grid.cell_w * scale * 0.45)
-    ry = int(grid.cell_h * scale * 0.45)
     ranked: list[tuple[float, tuple[int, int]]] = []
     for row, col in empty:
-        x0 = round((col + 0.5) * grid.cell_w * scale + pad - pw / 2)
-        y0 = round((row + 0.5) * grid.cell_h * scale + pad - ph / 2)
-        xa, xb = max(0, x0 - rx), min(width, x0 + rx + 1)
-        ya, yb = max(0, y0 - ry), min(height, y0 + ry + 1)
-        if xb <= xa or yb <= ya:
-            continue
-        window = ccoeff[ya:yb, xa:xb]
-        wy, wx = divmod(int(np.argmax(window)), window.shape[1])
-        x, y = xa + wx, ya + wy
-        ranked.append((score_at(x, y, float(window[wy, wx])), (row, col)))
+        hit = prep.best_in_cell(row, col, grid)
+        if hit is not None:
+            ranked.append((hit[0], (row, col)))
 
     # A margin needs something to measure against. With one open cell there is
     # no rival, so every piece "wins" there by default — and if board-state has
