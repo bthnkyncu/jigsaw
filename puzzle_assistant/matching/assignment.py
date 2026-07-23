@@ -21,6 +21,8 @@ the pairing is forced, never merely because the solver returned one.
 
 from __future__ import annotations
 
+import logging
+
 import cv2
 import numpy as np
 from scipy.optimize import linear_sum_assignment
@@ -28,6 +30,7 @@ from scipy.optimize import linear_sum_assignment
 from puzzle_assistant.config import Settings
 from puzzle_assistant.matching.engine import Prepared
 from puzzle_assistant.reference.target_map import TargetMap
+from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import CellAddress
 
 _BLOCKED = -1e3
@@ -177,7 +180,13 @@ def assign_cell(
     target_map: TargetMap,
     settings: Settings,
 ) -> CellAddress | None:
-    """Cell for ``prepared[index]``, or ``None`` if the solution is not forced."""
+    """Cell for ``prepared[index]``, or ``None`` if the solution is not forced.
+
+    Logs the regret even when it refuses. The gate was set from reconstructed
+    endgames, and it fires rarely by design — without a record of the near
+    misses a live session that shows no overlay is indistinguishable from one
+    where the feature never ran at all, and there would be nothing to retune on.
+    """
     if not cells or index >= len(prepared):
         return None
     scores = score_matrix(prepared, cells, target_map)
@@ -185,7 +194,19 @@ def assign_cell(
     if solved is None:
         return None
     j, regret = solved
-    if regret < settings.assignment_min_regret:
-        return None
     row, col = cells[j]
+    accepted = regret >= settings.assignment_min_regret
+    plog.event(
+        "assignment_considered",
+        level=logging.INFO,
+        held=len(prepared),
+        open_cells=len(cells),
+        coverage=round(len(prepared) / len(cells), 2),
+        regret=round(regret, 4),
+        floor=settings.assignment_min_regret,
+        cell=[row, col],
+        accepted=accepted,
+    )
+    if not accepted:
+        return None
     return CellAddress(row=row, col=col)

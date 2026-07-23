@@ -244,9 +244,21 @@ class Settings:
     empty_cell_search_min_margin: float = 0.12
 
     # --- Endgame joint assignment (matching/assignment.py) ---
-    # Only worth solving when few cells are left; measured stuck endgames ran to
-    # 12 pieces, so this leaves a little room above that.
-    assignment_max_cells: int = 16
+    # A *cost* ceiling, not a difficulty one — and deliberately not scaled to the
+    # puzzle size. Whether the "one piece per cell" constraint says anything is
+    # already answered by ``assignment_min_coverage``, which is a ratio and so is
+    # size-independent by construction: 60 % coverage means the same thing on a
+    # 50-piece board and a 250-piece one. What this limits is solve time, and a
+    # 200 ms frame budget is 200 ms regardless of puzzle size. If anything the
+    # pressure runs the other way — the same N costs *more* on a bigger board,
+    # because every score is read off a larger correlation map.
+    #
+    # Measured (score matrix + solve, on a 200-piece board): N=14 -> 55 ms,
+    # N=18 -> 92 ms, N=22 -> 134 ms, N=26 -> 165 ms. 20 keeps the worst case near
+    # 110 ms, leaving room for the matcher itself. It also stays consistent with
+    # the buffer: 14 held pieces against 20 open cells is 0.70 coverage, above
+    # the 0.6 floor, so the two limits cannot deadlock each other.
+    assignment_max_cells: int = 20
     # The buffer must cover this fraction of the open cells before the "each
     # cell takes one piece" constraint says anything. Measured in a full live
     # simulation, the buffer normally holds ~3 pieces against ~22 open cells
