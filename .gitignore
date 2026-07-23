@@ -11,3 +11,11 @@ dist/
 # Editör dizinleri
 .vscode/
 .idea/
+
+# Yakalanan oyun verileri (yerel eğitim/değerlendirme verisi — depoya girmez)
+captures/
+captures_*/
+
+# Çalışma zamanı günlükleri ve hata ayıklama kareleri
+logs/
+
