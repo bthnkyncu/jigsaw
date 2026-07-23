@@ -83,3 +83,64 @@ def test_loop_survives_missing_window() -> None:
     loop = MainLoop(settings, capture, mouse, overlay, notifier)
     loop.run(max_iterations=3)
     assert loop._ctx.state == State.IDLE
+
+
+def test_a_moved_board_is_followed_not_ignored(fixtures_dir: Path) -> None:
+    """A board that slides across the screen must be tracked.
+
+    Everything downstream reads the live board through this bbox — the overlay
+    is positioned from it, and so are the filled-cell scan and the hole-shape
+    rescue — so a stale one puts the green box on the wrong cell. The drift
+    watchdog could not catch this: it averages the change over (x, y, w, h), so
+    a measured 375 px slide with the size unchanged came out as 12 % against a
+    35 % threshold and was ignored.
+    """
+    import numpy as np
+
+    settings = load_settings(None)
+    settings.init_view_settle_delay_s = 0.0
+    settings.board_bbox_check_interval_s = 0.0
+    full = cv2.imread(str(fixtures_dir / "init_view_4.png"))
+    window_frame = full[WIN_Y:WIN_Y + WIN_H, WIN_X:WIN_X + WIN_W]
+
+    capture = MockWindowCapture(frame=window_frame, bbox=Bbox(0, 0, WIN_W, WIN_H))
+    loop = MainLoop(settings, capture, MockMouseHook(), HeadlessOverlay(), ConsoleNotifier())
+    loop.run(max_iterations=10)
+    before = loop._ctx.artifacts.board_bbox
+    assert before is not None
+
+    # Slide the whole scene right and down; the board keeps its size.
+    shift_x, shift_y = 40, 25
+    moved = np.zeros_like(window_frame)
+    moved[shift_y:, shift_x:] = window_frame[:window_frame.shape[0] - shift_y,
+                                             :window_frame.shape[1] - shift_x]
+    capture.frame = moved
+    loop._monitor_board_bbox(moved)
+
+    after = loop._ctx.artifacts.board_bbox
+    assert after is not None
+    assert abs(after.x - (before.x + shift_x)) <= 6, (
+        f"board not followed: {before} -> {after}"
+    )
+    assert abs(after.y - (before.y + shift_y)) <= 6
+    # The grid was derived from the calibrated size, so the size must not move.
+    assert (after.w, after.h) == (before.w, before.h)
+    assert loop._board_state is None, "filled-cell state from the old crop is stale"
+
+
+def test_a_stationary_board_does_not_jitter(fixtures_dir: Path) -> None:
+    """Contour noise (0-8 px measured) must not drag the bbox around."""
+    settings = load_settings(None)
+    settings.init_view_settle_delay_s = 0.0
+    settings.board_bbox_check_interval_s = 0.0
+    full = cv2.imread(str(fixtures_dir / "init_view_4.png"))
+    window_frame = full[WIN_Y:WIN_Y + WIN_H, WIN_X:WIN_X + WIN_W]
+
+    capture = MockWindowCapture(frame=window_frame, bbox=Bbox(0, 0, WIN_W, WIN_H))
+    loop = MainLoop(settings, capture, MockMouseHook(), HeadlessOverlay(), ConsoleNotifier())
+    loop.run(max_iterations=10)
+    before = loop._ctx.artifacts.board_bbox
+
+    for _ in range(5):
+        loop._monitor_board_bbox(window_frame)
+    assert loop._ctx.artifacts.board_bbox == before

@@ -152,6 +152,14 @@ class Settings:
     # which made the mouse feel laggy on Windows. ~1.5 s is plenty to catch a
     # deliberate window move, and it now runs only while READY (never mid-drag).
     board_bbox_check_interval_s: float = 1.5
+    # Following a board that moved without changing size. Measured over eight
+    # recorded sessions, a stationary board's detected position wanders by 0–8 px
+    # (contour noise), while the two sessions where the window was actually moved
+    # slid 158 px and 375 px. 12 px is clear of the noise and far below anything
+    # real. The size tolerance covers the same contour noise; a genuine resize
+    # invalidates the grid and goes to the recalibration path instead.
+    board_follow_min_shift_px: int = 12
+    board_follow_max_size_drift_px: int = 12
     # A cell counts as filled once less than (1 - this) of it is bare board
     # light — i.e. a placed piece covers most of it. Live boards split cleanly
     # (empty cells ≈1.0 light fraction, filled ≈0.0), so 0.45 sits in the empty

@@ -327,6 +327,38 @@ class MainLoop:
         old = self._ctx.artifacts.board_bbox
         if bb_now is None or old is None:
             return
+
+        # A board that merely *moved* is still the same board: same picture,
+        # same grid, only somewhere else on screen. Follow it instead of
+        # recalibrating — and follow it at all, which is the actual bug here.
+        # The drift check below averages over (x, y, w, h), so a shift along one
+        # axis is divided by four before being compared: a measured 375 px slide
+        # (nine cells, board size unchanged) came out as 12 % against a 35 %
+        # threshold and was silently ignored. Everything downstream reads the
+        # live board through this bbox — the overlay is drawn from it, and so are
+        # the filled-cell scan and the hole-shape rescue — so a stale bbox puts
+        # the green box on the wrong cell.
+        #
+        # Only the position is taken. The size stays as calibrated, because the
+        # grid's cell dimensions were derived from it and a resized board is a
+        # different problem, left to the recalibration path below.
+        moved = max(abs(bb_now.x - old.x), abs(bb_now.y - old.y))
+        resized = max(abs(bb_now.w - old.w), abs(bb_now.h - old.h))
+        if (
+            resized <= self._settings.board_follow_max_size_drift_px
+            and moved >= self._settings.board_follow_min_shift_px
+        ):
+            self._ctx.artifacts.board_bbox = Bbox(
+                x=bb_now.x, y=bb_now.y, w=old.w, h=old.h
+            )
+            # Computed from the old crop, so every cell in it is suspect.
+            self._board_state = None
+            plog.event(
+                "board_followed",
+                from_xy=[old.x, old.y], to_xy=[bb_now.x, bb_now.y], shift_px=moved,
+            )
+            return
+
         drift = old.relative_change_pct(bb_now)
         if drift > self._settings.board_bbox_change_threshold_pct:
             sm.on_board_bbox_drift(self._ctx)
