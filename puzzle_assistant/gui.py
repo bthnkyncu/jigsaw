@@ -17,7 +17,9 @@ bundles cleanly with PyInstaller via ``--collect-all customtkinter``.
 from __future__ import annotations
 
 import argparse
+import contextlib
 import json
+import logging
 import threading
 from pathlib import Path
 
@@ -26,7 +28,7 @@ import customtkinter as ctk
 from puzzle_assistant.config import Settings, load_settings
 from puzzle_assistant.overlay.gui_overlay import GuiOverlay
 from puzzle_assistant.state.main_loop import MainLoop
-from puzzle_assistant.utils import dpi
+from puzzle_assistant.utils import dpi, resources
 from puzzle_assistant.utils import logger as plog
 from puzzle_assistant.utils.coords import Bbox
 from puzzle_assistant.utils.platform import (
@@ -36,15 +38,24 @@ from puzzle_assistant.utils.platform import (
     make_window_capture,
 )
 
-# Palette
-_GREY = "#6b7280"
-_AMBER = "#f59e0b"
-_GREEN = "#22c55e"
+APP_NAME = "Jigsaw Solver"
+APP_TAGLINE = "Gamyun Yapboz — görsel yerleştirme asistanı"
+
+# Palette — drawn from the logo: deep navy field, cyan-to-lime neon accents.
+_NAVY = "#0d1b2e"        # header / deep background, matches the logo backplate
+_NAVY_CARD = "#152437"   # raised cards on the navy
+_CYAN = "#22d3ee"        # primary neon (left edge of the logo gradient)
+_CYAN_HOVER = "#0891b2"
+_LIME = "#a3e635"        # secondary neon (right edge of the gradient)
+_GREEN = "#22c55e"       # "ready / correct cell" — same green the overlay draws
 _ACCENT = "#16a34a"
 _ACCENT_HOVER = "#15803d"
-_INFO = "#0ea5e9"
-_INFO_HOVER = "#0284c7"
-_BADGE_COLORS = ["#16a34a", "#0ea5e9", "#f59e0b", "#8b5cf6", "#ef4444"]
+_INFO = _CYAN
+_INFO_HOVER = _CYAN_HOVER
+_GREY = "#64748b"
+_AMBER = "#f59e0b"
+_MUTED = "#94a3b8"
+_BADGE_COLORS = ["#22d3ee", "#38bdf8", "#4ade80", "#a3e635", "#facc15"]
 
 # state -> (Turkish status text, indicator colour)
 _STATE_TR: dict[str, tuple[str, str]] = {
@@ -140,14 +151,19 @@ class AssistantGUI:
         self._help_win: ctk.CTkToplevel | None = None
         self._logs_win: ctk.CTkToplevel | None = None
         self._logs_box: ctk.CTkTextbox | None = None
+        # Keep a reference to every CTkImage/PhotoImage: tkinter drops images
+        # that nothing holds, and a garbage-collected header logo shows blank.
+        self._images: list[object] = []
 
         ctk.set_appearance_mode("dark")
         ctk.set_default_color_theme("green")
 
         self.root = ctk.CTk()
-        self.root.title("Yapboz Asistanı")
-        self.root.geometry("500x600")
-        self.root.minsize(460, 560)
+        self.root.title(APP_NAME)
+        self.root.geometry("500x516")
+        self.root.minsize(460, 500)
+        self.root.configure(fg_color="#0a1522")
+        self._set_window_icon()
 
         # One Tk root for the whole process: the overlay is a Toplevel of this
         # root driven on the main thread (see GuiOverlay) — never a second
@@ -158,30 +174,77 @@ class AssistantGUI:
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
         self.root.after(500, self._poll_status)
 
+    def _set_window_icon(self) -> None:
+        """Taskbar / title-bar icon. iconphoto works on both X11 and Windows;
+        the .ico additionally gives Windows the crisp small sizes."""
+        try:
+            from PIL import Image, ImageTk
+
+            png = resources.asset_path(resources.LOGO_PNG)
+            if png.exists():
+                icon = ImageTk.PhotoImage(Image.open(png).resize((64, 64)))
+                self.root.iconphoto(True, icon)
+                self._images.append(icon)
+            ico = resources.asset_path(resources.LOGO_ICO)
+            if ico.exists():
+                with contextlib.suppress(Exception):
+                    self.root.iconbitmap(default=str(ico))  # Windows only
+        except Exception as exc:  # never let branding break startup
+            plog.event("gui_icon_failed", level=logging.WARNING, error=str(exc))
+
+    def _logo_image(self, size: int) -> "ctk.CTkImage | None":
+        """A CTkImage of the logo at ``size`` px, or ``None`` if unavailable."""
+        try:
+            from PIL import Image
+
+            png = resources.asset_path(resources.LOGO_PNG)
+            if not png.exists():
+                return None
+            img = ctk.CTkImage(light_image=Image.open(png), size=(size, size))
+            self._images.append(img)
+            return img
+        except Exception:
+            return None
+
     def _build_widgets(self) -> None:
         root = self.root
         root.grid_columnconfigure(0, weight=1)
 
-        # --- Coloured header banner ---
-        banner = ctk.CTkFrame(root, corner_radius=0, fg_color=_ACCENT, height=92)
+        # --- Header banner: logo + wordmark on the logo's own navy ---
+        banner = ctk.CTkFrame(root, corner_radius=0, fg_color=_NAVY, height=108)
         banner.grid(row=0, column=0, sticky="ew")
         banner.grid_propagate(False)
+        banner.grid_columnconfigure(1, weight=1)
+
+        logo = self._logo_image(64)
+        if logo is not None:
+            ctk.CTkLabel(banner, text="", image=logo).grid(
+                row=0, column=0, rowspan=2, padx=(20, 14), pady=22
+            )
+        text_col = 1 if logo is not None else 0
         ctk.CTkLabel(
-            banner, text="🧩  Yapboz Asistanı",
-            font=ctk.CTkFont(size=24, weight="bold"), text_color="white",
-        ).pack(anchor="w", padx=24, pady=(20, 0))
+            banner, text=APP_NAME,
+            font=ctk.CTkFont(size=26, weight="bold"), text_color="#f8fafc",
+        ).grid(row=0, column=text_col, sticky="sw", pady=(24, 0),
+               padx=(20, 20) if logo is None else (0, 20))
         ctk.CTkLabel(
-            banner, text="Gamyun Yapboz — görsel yerleştirme asistanı",
-            font=ctk.CTkFont(size=13), text_color="#dcfce7",
-        ).pack(anchor="w", padx=24)
+            banner, text=APP_TAGLINE,
+            font=ctk.CTkFont(size=13), text_color=_CYAN,
+        ).grid(row=1, column=text_col, sticky="nw", pady=(0, 20),
+               padx=(20, 20) if logo is None else (0, 20))
+
+        # Thin neon rule under the header, echoing the logo's scan ring.
+        ctk.CTkFrame(root, corner_radius=0, fg_color=_CYAN, height=3).grid(
+            row=1, column=0, sticky="ew"
+        )
 
         # --- Status card ---
-        card = ctk.CTkFrame(root, corner_radius=14)
-        card.grid(row=1, column=0, sticky="ew", padx=20, pady=(18, 8))
+        card = ctk.CTkFrame(root, corner_radius=14, fg_color=_NAVY_CARD)
+        card.grid(row=2, column=0, sticky="ew", padx=20, pady=(18, 8))
         card.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(
             card, text="DURUM", font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#9ca3af",
+            text_color=_MUTED,
         ).grid(row=0, column=0, columnspan=2, sticky="w", padx=16, pady=(12, 0))
         self._dot = ctk.CTkLabel(
             card, text="●", font=ctk.CTkFont(size=22), text_color=_GREY,
@@ -194,8 +257,8 @@ class AssistantGUI:
         self._status_label.grid(row=1, column=1, sticky="w", pady=(0, 14))
 
         # --- Piece-count input (enter BEFORE Başlat) ---
-        count_card = ctk.CTkFrame(root, corner_radius=14)
-        count_card.grid(row=2, column=0, sticky="ew", padx=20, pady=8)
+        count_card = ctk.CTkFrame(root, corner_radius=14, fg_color=_NAVY_CARD)
+        count_card.grid(row=3, column=0, sticky="ew", padx=20, pady=8)
         count_card.grid_columnconfigure(1, weight=1)
         ctk.CTkLabel(
             count_card, text="Parça sayısı",
@@ -203,48 +266,50 @@ class AssistantGUI:
         ).grid(row=0, column=0, sticky="w", padx=(16, 8), pady=14)
         self._count_entry = ctk.CTkEntry(
             count_card, placeholder_text="örn. 150  (oyunda seçtiğiniz sayı)",
-            font=ctk.CTkFont(size=14), height=36,
+            font=ctk.CTkFont(size=14), height=36, border_color=_CYAN,
         )
         self._count_entry.grid(row=0, column=1, sticky="ew", padx=(0, 16), pady=14)
 
         # --- Start / Stop ---
         buttons = ctk.CTkFrame(root, fg_color="transparent")
-        buttons.grid(row=3, column=0, sticky="ew", padx=20, pady=6)
+        buttons.grid(row=4, column=0, sticky="ew", padx=20, pady=6)
         buttons.grid_columnconfigure((0, 1), weight=1)
         self._start_btn = ctk.CTkButton(
-            buttons, text="BAŞLAT", height=46, command=self._start,
+            buttons, text="BAŞLAT", height=48, command=self._start,
             font=ctk.CTkFont(size=15, weight="bold"),
-            fg_color=_ACCENT, hover_color=_ACCENT_HOVER,
+            fg_color=_ACCENT, hover_color=_ACCENT_HOVER, text_color="white",
         )
         self._start_btn.grid(row=0, column=0, sticky="ew", padx=(0, 6))
         self._stop_btn = ctk.CTkButton(
-            buttons, text="DURDUR", height=46, command=self._stop, state="disabled",
+            buttons, text="DURDUR", height=48, command=self._stop, state="disabled",
             font=ctk.CTkFont(size=15, weight="bold"),
-            fg_color="#374151", hover_color="#b91c1c",
+            fg_color="#334155", hover_color="#b91c1c",
         )
         self._stop_btn.grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
         # --- Secondary buttons: help + logs ---
         secondary = ctk.CTkFrame(root, fg_color="transparent")
-        secondary.grid(row=4, column=0, sticky="ew", padx=20, pady=(6, 8))
+        secondary.grid(row=5, column=0, sticky="ew", padx=20, pady=(6, 8))
         secondary.grid_columnconfigure((0, 1), weight=1)
         ctk.CTkButton(
             secondary, text="📖  Nasıl Oynanır?", height=44, command=self._open_help,
             font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color=_INFO, hover_color=_INFO_HOVER,
+            fg_color="transparent", border_width=2, border_color=_CYAN,
+            text_color=_CYAN, hover_color=_NAVY_CARD,
         ).grid(row=0, column=0, sticky="ew", padx=(0, 6))
         ctk.CTkButton(
             secondary, text="📋  Loglar", height=44, command=self._open_logs,
             font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color="#475569", hover_color="#334155",
+            fg_color="transparent", border_width=2, border_color=_GREY,
+            text_color=_MUTED, hover_color=_NAVY_CARD,
         ).grid(row=0, column=1, sticky="ew", padx=(6, 0))
 
         # --- Footer ---
         ctk.CTkLabel(
             root,
             text="Fareyi kullanmaz · ekranı okur ve yeşil çerçeve çizer · %100 ölçek gerekir",
-            font=ctk.CTkFont(size=11), text_color="#6b7280", wraplength=440,
-        ).grid(row=5, column=0, pady=(4, 14))
+            font=ctk.CTkFont(size=11), text_color=_GREY, wraplength=440,
+        ).grid(row=6, column=0, pady=(4, 14))
 
     # ------------------------------ help window ---------------------------
 
@@ -260,24 +325,28 @@ class AssistantGUI:
         win.minsize(480, 520)
         win.transient(self.root)
         win.grid_columnconfigure(0, weight=1)
-        win.grid_rowconfigure(1, weight=1)
+        win.grid_rowconfigure(2, weight=1)
+        win.configure(fg_color="#0a1522")
 
-        banner = ctk.CTkFrame(win, corner_radius=0, fg_color=_INFO, height=70)
+        banner = ctk.CTkFrame(win, corner_radius=0, fg_color=_NAVY, height=70)
         banner.grid(row=0, column=0, sticky="ew")
         banner.grid_propagate(False)
         ctk.CTkLabel(
             banner, text="📖  Nasıl Oynanır?",
-            font=ctk.CTkFont(size=20, weight="bold"), text_color="white",
+            font=ctk.CTkFont(size=20, weight="bold"), text_color="#f8fafc",
         ).pack(anchor="w", padx=24, pady=20)
+        ctk.CTkFrame(win, corner_radius=0, fg_color=_CYAN, height=3).grid(
+            row=1, column=0, sticky="ew"
+        )
 
         body = ctk.CTkScrollableFrame(win, fg_color="transparent")
-        body.grid(row=1, column=0, sticky="nsew", padx=8, pady=8)
+        body.grid(row=2, column=0, sticky="nsew", padx=8, pady=8)
         body.grid_columnconfigure(0, weight=1)
 
         for i, (num, title, desc) in enumerate(_STEPS):
             self._step_card(body, i, num, title, desc, _BADGE_COLORS[i % len(_BADGE_COLORS)])
 
-        notes = ctk.CTkFrame(body, corner_radius=12, fg_color="#1f2937")
+        notes = ctk.CTkFrame(body, corner_radius=12, fg_color=_NAVY_CARD)
         notes.grid(row=len(_STEPS), column=0, sticky="ew", padx=8, pady=(12, 6))
         notes.grid_columnconfigure(0, weight=1)
         ctk.CTkLabel(
@@ -287,7 +356,7 @@ class AssistantGUI:
         for j, note in enumerate(_NOTES):
             ctk.CTkLabel(
                 notes, text=f"•  {note}", font=ctk.CTkFont(size=12),
-                anchor="w", justify="left", wraplength=470, text_color="#d1d5db",
+                anchor="w", justify="left", wraplength=470, text_color="#cbd5e1",
             ).grid(row=j + 1, column=0, sticky="w", padx=16, pady=2)
         ctk.CTkLabel(notes, text="").grid(row=len(_NOTES) + 1, column=0, pady=4)
 
@@ -295,7 +364,7 @@ class AssistantGUI:
             win, text="Kapat", height=40, command=win.destroy,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=_ACCENT, hover_color=_ACCENT_HOVER,
-        ).grid(row=2, column=0, sticky="ew", padx=20, pady=(4, 14))
+        ).grid(row=3, column=0, sticky="ew", padx=20, pady=(4, 14))
 
         win.after(120, win.lift)  # ensure it surfaces above the main window
 
@@ -333,24 +402,29 @@ class AssistantGUI:
         win.minsize(540, 360)
         win.transient(self.root)
         win.grid_columnconfigure(0, weight=1)
-        win.grid_rowconfigure(1, weight=1)
+        win.grid_rowconfigure(2, weight=1)
+        win.configure(fg_color="#0a1522")
 
-        banner = ctk.CTkFrame(win, corner_radius=0, fg_color="#334155", height=64)
+        banner = ctk.CTkFrame(win, corner_radius=0, fg_color=_NAVY, height=64)
         banner.grid(row=0, column=0, sticky="ew")
         banner.grid_propagate(False)
         ctk.CTkLabel(
             banner, text="📋  Loglar / Olaylar",
-            font=ctk.CTkFont(size=18, weight="bold"), text_color="white",
+            font=ctk.CTkFont(size=18, weight="bold"), text_color="#f8fafc",
         ).pack(side="left", padx=24, pady=16)
         ctk.CTkLabel(
             banner, text="canlı — sürüklerken TRACKING / match satırlarına bakın",
-            font=ctk.CTkFont(size=12), text_color="#cbd5e1",
+            font=ctk.CTkFont(size=12), text_color=_MUTED,
         ).pack(side="left", pady=16)
+        ctk.CTkFrame(win, corner_radius=0, fg_color=_CYAN, height=3).grid(
+            row=1, column=0, sticky="ew"
+        )
 
         box = ctk.CTkTextbox(
             win, font=ctk.CTkFont(family="Consolas", size=12), wrap="none",
+            fg_color=_NAVY_CARD,
         )
-        box.grid(row=1, column=0, sticky="nsew", padx=12, pady=12)
+        box.grid(row=2, column=0, sticky="nsew", padx=12, pady=12)
         box.configure(state="disabled")
         self._logs_box = box
 
@@ -358,7 +432,7 @@ class AssistantGUI:
             win, text="Kapat", height=40, command=win.destroy,
             font=ctk.CTkFont(size=14, weight="bold"),
             fg_color=_ACCENT, hover_color=_ACCENT_HOVER,
-        ).grid(row=2, column=0, sticky="ew", padx=20, pady=(0, 14))
+        ).grid(row=3, column=0, sticky="ew", padx=20, pady=(0, 14))
 
         self._refresh_logs()
         win.after(150, win.lift)
